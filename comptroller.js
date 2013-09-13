@@ -18,15 +18,18 @@
  *    upgrades, I don't want to have item tables or multipliers that get out-of-sync with the game.
  *  - New game mechanics or items.
  */
+/* global Game, angular */
 
 var _Comptroller = function _Comptroller(Game) {
+    "use strict";
+
     var ViewModel = function ViewModel () {};
 
     // in minutes
     var timeToRepayUpgrade = function timeToRepayUpgrade(cost, multiplier) {
         var gainedCPS = Game.cookiesPs * multiplier;
         return cost / gainedCPS / 60;
-    }
+    };
 
     var _prefixes = ['', 'kilo', 'mega', 'giga', 'tera', 'peta', 'exa', 'zetta', 'yotta'];
 
@@ -52,7 +55,7 @@ var _Comptroller = function _Comptroller(Game) {
         }
         rootDigit = Math.floor((n1digits - 1) / 3) * 3 + 1;
         return rootDigit - n2digits;
-    }
+    };
 
 
     /* Display a number with its metric prefix. e.g. 12345678 = "12.3 mega"
@@ -85,8 +88,8 @@ var _Comptroller = function _Comptroller(Game) {
         while (minsPer < 1 && prefixes.length) {
             minsPer = minsPer * 1000;
             prefix = prefixes.shift();
-        };
-        return minsPer.toPrecision(3) + " minutes per " + prefix + "cookie"
+        }
+        return minsPer.toPrecision(3) + " minutes per " + prefix + "cookie";
     };
 
     return {
@@ -97,7 +100,7 @@ var _Comptroller = function _Comptroller(Game) {
         metricPrefixed: metricPrefixed
     };
 };
-Comptroller = _Comptroller(Game);
+var Comptroller = _Comptroller(Game);
 
 /* Reconfigure Cookie Clicker to run at 4 frames per second.
  *
@@ -105,6 +108,7 @@ Comptroller = _Comptroller(Game);
  * http://forum.dashnet.org/discussion/208/low-fps-mode
  */
 var lowFPS = function (Game) {
+    "use strict";
     var origFPS = Game.fps, newFPS = 4;
     var ratio = newFPS / origFPS;
     // FIXME: Resetting FPS mid-game may distort various counters, including including research
@@ -120,6 +124,7 @@ var lowFPS = function (Game) {
 
 
 var defineServices = function defineServices () {
+    "use strict";
     var module = angular.module("cookieComptroller", []);
     
     /* Make the stock Cookie Clicker game injectable into Angular objects. */
@@ -133,8 +138,8 @@ var defineServices = function defineServices () {
             Game.Draw = function () {
                 origDraw.apply(Game, arguments);
                 $rootScope.$apply();
-            }
-            console.debug("Game.Draw hook installed.")
+            };
+            console.debug("Game.Draw hook installed.");
         }
         return Game; // this is the global Cookie Clicker "Game" instance. 
     });
@@ -144,12 +149,13 @@ var defineServices = function defineServices () {
 };
 
 var ComptrollerController = function ComptrollerController($scope, CookieClicker) {
+    "use strict";
     $scope.Game = CookieClicker;
-    $scope.timePerCookie = function () { return Comptroller.timePerCookie(CookieClicker.cookiesPs); }
-    $scope.cookiesToMinutes = function (cookies) { return cookies / CookieClicker.cookiesPs / 60; }
+    $scope.timePerCookie = function () { return Comptroller.timePerCookie(CookieClicker.cookiesPs); };
+    $scope.cookiesToMinutes = function (cookies) { return cookies / CookieClicker.cookiesPs / 60; };
 
-    $scope.storeObjects = function () { return CookieClicker.ObjectsById };
-    $scope.storeUpgrades = function () { return CookieClicker.UpgradesInStore };
+    $scope.storeObjects = function () { return CookieClicker.ObjectsById; };
+    $scope.storeUpgrades = function () { return CookieClicker.UpgradesInStore; };
     $scope.enoughDigits = Comptroller.enoughDigits;
     $scope.timeToRepayUpgrade = Comptroller.timeToRepayUpgrade;
     
@@ -170,7 +176,7 @@ var ComptrollerController = function ComptrollerController($scope, CookieClicker
         minutesToRepay: function (obj) {
             return obj.price / (obj.storedCps * CookieClicker.globalCpsMult) / 60;
         }
-    }
+    };
 };
 
 var bootstrap = function bootstrap() {
@@ -183,11 +189,12 @@ var angularLoaded = function () {
 
 /* Load a script by adding a <script> tag to the document. */
 var loadScript = function (url, callback) {
+  "use strict";
   var script = document.createElement("script");
   script.setAttribute("src", url);
   script.addEventListener('load', callback, false);
   document.body.appendChild(script);
-}
+};
 
 var loadAngular = function (callback) {
     loadScript("https://ajax.googleapis.com/ajax/libs/angularjs/1.0.8/angular.js", callback);
@@ -195,6 +202,8 @@ var loadAngular = function (callback) {
 
 /* Execute some code by adding a new <script> tag with it. */
 function execute(functionOrCode) {
+    "use strict";
+    var code, e;
     if (typeof functionOrCode === "function") {
         code = "(" + functionOrCode + ")();";
     } else {
@@ -250,7 +259,7 @@ var ComptrollerAssets = {
       /* total cookies and rates */
       "<p>{{ Game.cookies | metricPrefixed:enoughDigits(Game.cookies, Game.cookiesPs):true }}cookies " + 
       "(investment {{ (Game.cookies > investmentSize()) && '+' || '' }}{{ Game.cookies - investmentSize() | metricPrefixed }}cookies) at<br />\n" + 
-      "{{ Game.cookiesPs | metricPrefixed }}cookies per second, {{ Game.cookiesPs * 60 | metricPrefixed }}cookies per minute, or <br \>\n" + 
+      "{{ Game.cookiesPs | metricPrefixed }}cookies per second, {{ Game.cookiesPs * 60 | metricPrefixed }}cookies per minute, or <br />\n" +
       "{{ timePerCookie() }}.</p>\n" +
       /* store */
       "<table class='comptrollerStore'>\n" +
@@ -286,6 +295,7 @@ var ComptrollerAssets = {
 };
 
 var addComptrollerToDOM = function () {
+  "use strict";
   var style = document.createElement("style");
   style.setAttribute('type', 'text/css');
   style.textContent = ComptrollerAssets.CSS;
@@ -295,10 +305,11 @@ var addComptrollerToDOM = function () {
   div.id = "comptroller";
   document.body.appendChild(div);
   div.innerHTML = ComptrollerAssets.HTML;
-}
+};
 
 
 var boot = function () {
+    "use strict";
     lowFPS(Game);
     addComptrollerToDOM();
     loadAngular(angularLoaded);
