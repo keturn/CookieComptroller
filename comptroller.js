@@ -5,12 +5,16 @@
  * Written by Kevin Turner. Not supported or endorsed by Orteli.
  
  * TODO:
- *  - inspect Cookie Clicker version for possible compatibilty mismatches
+ *  - inspect Cookie Clicker version for possible compatibility mismatches
  *  - report on handmade cookies during frenzy activity
  *  - report historical CPS, with expected vs realized
  *  - rework display of ideal investment (for Lucky! multiplier cookies)
+ *  - show theoretical return on investment from golden cookies
  *  - make userscript-compatible
  *  - streamline upgrade cost/benefit calculator
+ *  - calculator: add option to express upgrade as percentage of a single item
+ *  - add to shop: time (or date) of "total time to break even"
+ *  - move comptroller to center pane
  *  - replace obsolete unit of time "minutes" with more contemporary "loops of Ylvis' The Fox"
  *
  * Anti-Goals:
@@ -18,7 +22,7 @@
  *    upgrades, I don't want to have item tables or multipliers that get out-of-sync with the game.
  *  - New game mechanics or items.
  */
-/* global Game, angular */
+/*global Game, angular, console */
 
 var _Comptroller = function _Comptroller(Game) {
     "use strict";
@@ -135,7 +139,7 @@ var defineServices = function defineServices () {
             console.warn("Game.Draw already hooked?");
         } else {
             Game._ccompOrigDraw = origDraw;
-            Game.Draw = function () {
+            Game.Draw = function DrawWithCookieComptroller() {
                 origDraw.apply(Game, arguments);
                 $rootScope.$apply();
             };
@@ -180,10 +184,12 @@ var ComptrollerController = function ComptrollerController($scope, CookieClicker
 };
 
 var bootstrap = function bootstrap() {
+    "use strict";
     angular.bootstrap(document.getElementById("comptroller"), ["cookieComptroller"]);
 };
 
 var angularLoaded = function () {
+    "use strict";
     defineServices(); bootstrap();
 };
 
@@ -197,6 +203,7 @@ var loadScript = function (url, callback) {
 };
 
 var loadAngular = function (callback) {
+    "use strict";
     loadScript("https://ajax.googleapis.com/ajax/libs/angularjs/1.0.8/angular.js", callback);
 };
 
@@ -222,7 +229,7 @@ function execute(functionOrCode) {
  * provide a way to bundle other assets besides the javascript. */
 var ComptrollerAssets = {
     CSS:   ("#comptroller {\n" +
-      "position: absolute; z-index: 500; bottom: 40px; \n" +
+      "position: absolute; z-index: 500; bottom: 36px; \n" +
       "color: white;" +
       "background-color:  rgba(0,0,0,0.85);\n" +
       "border: thick black outset;\n" +
@@ -245,6 +252,7 @@ var ComptrollerAssets = {
   ".comptrollerStore th {\n" +
       "font-weight: bolder;" +
       "background-color: #240A24;" +
+      "vertical-align: bottom;" +
   "}\n\n" +
   "#comptroller .pctInput {\n" +
       "width: 4em;" +
@@ -263,8 +271,10 @@ var ComptrollerAssets = {
       "{{ timePerCookie() }}.</p>\n" +
       /* store */
       "<table class='comptrollerStore'>\n" +
+      /* headers */
       "<tr><th>Name</th><th>Price<br />(C)</th><th>Price<br />(min)</th>" + 
       "<th>Incremental<br />Value %</th><th>Time to Repay<br/>(min)</th></tr>\n" +
+      /* objects */
       "<tbody>\n" +
       "    <tr ng-repeat='obj in storeObjects()'>" + 
       "    <td style='text-align: left'>{{ obj.name }}</th>" + 
@@ -273,6 +283,7 @@ var ComptrollerAssets = {
       "    <td style='text-align: right'>{{ store.incrementalValue(obj) * 100 | number }}%</th>" + 
       "    <td style='text-align: right'>{{ store.minutesToRepay(obj) | number:1 }}</th>" + 
       "</tr>\n" +
+      /* upgrades */
       "<tr ng-repeat='obj in storeUpgrades()'>" +
       "    <td style='text-align: left' ng-click='$parent.selectedUpgrade = obj'>{{ obj.name }}</th>" + 
       "    <td style='text-align: right'>{{ obj.basePrice | number:0 }}</th>" + 
@@ -281,8 +292,10 @@ var ComptrollerAssets = {
       "    <td style='text-align: right'>{{ timeToRepayUpgrade(obj.basePrice, store.upgradeValue(obj)) | number:1 }}</th>" + 
       "</tr>\n" +
       "</tbody>\n" +
+      /* calculator */
       "<tbody><tr>" +
-      "    <td><select ng-model='selectedUpgrade' ng-options='u.name for u in storeUpgrades()'></select></th>" +
+//      "    <td><select ng-model='selectedUpgrade' ng-options='u.name for u in storeUpgrades()'></select></th>" +
+      "    <td>{{ selectedUpgrade.name }}</th>" +
       "    <td style='text-align: right'>{{ selectedUpgrade.basePrice | number:0 }}</th>" + 
       "    <td style='text-align: right'>{{ cookiesToMinutes(selectedUpgrade.basePrice) | number:1 }}</th>" + 
       "    <td style='text-align: right'><input type='number' class='pctInput' ng-model='upgradePercent'>%</th>" + 
