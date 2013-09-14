@@ -237,7 +237,7 @@ var ComptrollerController = function ComptrollerController($scope, CookieClicker
         } else {
             return CookieClicker.globalCpsMult;
         }
-    }
+    };
 
     $scope.store = {
         incrementalValue: function (obj) {
@@ -262,7 +262,12 @@ var ComptrollerController = function ComptrollerController($scope, CookieClicker
             return obj.price / (obj.storedCps * CookieClicker.globalCpsMult) / 60;
         }
     };
-    
+
+    $scope.selectedUpgrade = undefined;
+    $scope.selectedUpgradeDomain = null;
+    $scope.selectedUpgradeAdd = 0;
+
+    //noinspection UnnecessaryLocalVariableJS
     var calculator = {
         currentCPS: function (domain) {
             var cps;
