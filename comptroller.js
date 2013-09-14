@@ -3,19 +3,32 @@
  * The Comptroller presents reports on the Cookie Clicker economy.
  *
  * Written by Kevin Turner. Not supported or endorsed by Orteli.
- 
+ *
+ * Usage notes:
+ *  - Access the comptroller from the button to the right of the news ticker.
+ *  - loading this script drops you down to 4 FPS. *This is intentional,* but
+ *    it's a matter of preference, not a requirement of Comptroller. It should be
+ *    optional. For now you may comment out the lowFPS() call in the boot function
+ *    near the end of this file.
+ *
+ * KNOWN BUGS:
+ *  - Upgrades are over-valued.
+ *  - The X in the upper-right does not close the Comptroller. (Click on the 
+ *    Comptroller button again, or any of the other menu buttons.)
+ *
  * TODO:
  *  - inspect Cookie Clicker version for possible compatibility mismatches
  *  - report on handmade cookies during frenzy activity
  *  - report historical CPS, with expected vs realized
- *  - rework display of ideal investment (for Lucky! multiplier cookies)
+ *  - rework display of principal investment (for Lucky! multiplier cookies)
  *  - show theoretical return on investment from golden cookies
  *  - make userscript-compatible
  *  - streamline upgrade cost/benefit calculator
  *  - calculator: add option to express upgrade as percentage of a single item
  *  - add to shop: time (or date) of "total time to break even"
- *  - move comptroller to center pane
  *  - replace obsolete unit of time "minutes" with more contemporary "loops of Ylvis' The Fox"
+ *  - report on how much income comes from each source
+ *  - report on total spent on each source
  *
  * Anti-Goals:
  *  - Duplication of item tables. As cool as it would be to calculate the effects of all the
@@ -27,9 +40,9 @@
 var _Comptroller = function _Comptroller(Game) {
     "use strict";
 
-    var ViewModel = function ViewModel () {};
-
     // in minutes
+    // FIXME: Check math for how multipliers combine. I fear we're over-estimating in the case
+    // where there's already a global multiplier.
     var timeToRepayUpgrade = function timeToRepayUpgrade(cost, multiplier) {
         var gainedCPS = Game.cookiesPs * multiplier;
         return cost / gainedCPS / 60;
@@ -96,12 +109,69 @@ var _Comptroller = function _Comptroller(Game) {
         return minsPer.toPrecision(3) + " minutes per " + prefix + "cookie";
     };
 
+    // stuff that happens before the Angular app is loaded.
+    var Foundation = {
+        COMPTROLLER_BUTTON_ID: "comptrollerButton",
+        addComptrollerButton: function () {
+            var button, menubar, beforeThis;
+            button = document.createElement("div");
+            button.id = Foundation.COMPTROLLER_BUTTON_ID;
+            button.classList.add("button");
+            button.innerHTML = "Comp&shy;troller";
+            beforeThis = document.getElementById("logButton");
+            menubar = beforeThis.parentNode;
+            menubar.insertBefore(button, beforeThis);
+            
+            button.onclick = Foundation.toggleComptroller;
+            return button;
+        },
+        toggleComptroller: function toggleComptroller () {
+            // Game.ShowMenu doesn't know what comptroller is, but at least with the current 
+            // implementation (1.035) it'll clear the menu area and keep track of the fact that
+            // comptroller is using it.
+            Game.ShowMenu("comptroller");
+        },
+        addComptroller: function addComptroller () {
+            var rootElement;
+            rootElement = Foundation.addToDOM();
+            angular.bootstrap(rootElement, ["cookieComptroller"]);
+            return rootElement;
+        },
+        installPrereqs: function  installPrereqs (callback) {
+            Foundation.loadCSS();
+            loadAngular(function () { defineServices(); callback(); });
+        },
+        loadCSS: function loadCSS () {
+            var style = document.createElement("style");
+            style.id = "comptrollerStyle";
+            style.setAttribute('type', 'text/css');
+            style.textContent = ComptrollerAssets.CSS;
+            document.head.appendChild(style);
+            return style;
+        },
+        addToDOM: function addToDOM() {
+            // Adding it to the menu div would be the sensible thing to do, but
+            // the menu contents get continually reset by the mainloop. So we place
+            // it before the menu instead.
+            var sibling = document.getElementById("menu");
+            var div = document.createElement("div");
+            div.id = "comptroller";
+            sibling.parentNode.insertBefore(div, sibling);
+            div.innerHTML = ComptrollerAssets.HTML;
+            return div;
+        },
+        boot: function boot() {
+            Foundation.installPrereqs(Foundation.addComptroller);
+            Foundation.addComptrollerButton();
+        }
+    };
+
     return {
-        ViewModel: ViewModel,
         timeToRepayUpgrade: timeToRepayUpgrade,
         timePerCookie: timePerCookie,
         enoughDigits: enoughDigits,
-        metricPrefixed: metricPrefixed
+        metricPrefixed: metricPrefixed,
+        Foundation: Foundation
     };
 };
 var Comptroller = _Comptroller(Game);
@@ -138,6 +208,7 @@ var defineServices = function defineServices () {
         if (Game._ccompOrigDraw) { 
             console.warn("Game.Draw already hooked?");
         } else {
+            /*** MAINLOOP HOOK ***/
             Game._ccompOrigDraw = origDraw;
             Game.Draw = function DrawWithCookieComptroller() {
                 origDraw.apply(Game, arguments);
@@ -165,6 +236,8 @@ var ComptrollerController = function ComptrollerController($scope, CookieClicker
     
     $scope.investmentSize = function () { return CookieClicker.cookiesPs * 60 * 20 * 10; };
     
+    $scope.comptrollerVisible = function () { return CookieClicker.onMenu === "comptroller"}
+    
     $scope.store = {
         incrementalValue: function (obj) {
             return obj.storedCps * CookieClicker.globalCpsMult / CookieClicker.cookiesPs;
@@ -183,15 +256,6 @@ var ComptrollerController = function ComptrollerController($scope, CookieClicker
     };
 };
 
-var bootstrap = function bootstrap() {
-    "use strict";
-    angular.bootstrap(document.getElementById("comptroller"), ["cookieComptroller"]);
-};
-
-var angularLoaded = function () {
-    "use strict";
-    defineServices(); bootstrap();
-};
 
 /* Load a script by adding a <script> tag to the document. */
 var loadScript = function (url, callback) {
@@ -229,10 +293,9 @@ function execute(functionOrCode) {
  * provide a way to bundle other assets besides the javascript. */
 var ComptrollerAssets = {
     CSS:   ("#comptroller {\n" +
-      "position: absolute; z-index: 500; bottom: 36px; \n" +
       "color: white;" +
-      "background-color:  rgba(0,0,0,0.85);\n" +
-      "border: thick black outset;\n" +
+      "/* menu container, even when empty, will transparently hover over our content, so we have to one-up it. */\n" +
+      "z-index:1000001; position:absolute; left:16px; right:0px; top:112px;\n" +
   "}\n\n" +
   "#comptroller b {\n" + // screw you, reset stylesheets
       "font-weight: bolder;" +
@@ -256,9 +319,17 @@ var ComptrollerAssets = {
   "}\n\n" +
   "#comptroller .pctInput {\n" +
       "width: 4em;" +
+  "}\n\n" +
+  /* this is very much mirroring the styles of the game's logButton */
+  "#comptrollerButton {\n" +
+    "top: 0; right: -16px;" +
+    "font-size: 80%;" +
+    "padding: 14px 16px 10px 0px;" +
+    "}\n\n" +
+    "#comptrollerButton:hover{right:-8px;}" +
   "}\n\n"),
     HTML: (
-      "<div ng-controller='ComptrollerController'>\n" +
+      "<div ng-controller='ComptrollerController' ng-show='comptrollerVisible()'>\n" +
       /* frenzy? */
       "<p ng-show='Game.frenzy'>&#xa1;&#xa1;FRENZY!! " + 
       "{{ Game.frenzyPower * 100 }}% for {{ (Game.frenzy / Game.fps).toFixed(1) }} seconds.</p>\n" +
@@ -307,25 +378,10 @@ var ComptrollerAssets = {
       "</div>\n")
 };
 
-var addComptrollerToDOM = function () {
-  "use strict";
-  var style = document.createElement("style");
-  style.setAttribute('type', 'text/css');
-  style.textContent = ComptrollerAssets.CSS;
-  document.head.appendChild(style);
-
-  var div = document.createElement("div");
-  div.id = "comptroller";
-  document.body.appendChild(div);
-  div.innerHTML = ComptrollerAssets.HTML;
-};
-
-
 var boot = function () {
     "use strict";
     lowFPS(Game);
-    addComptrollerToDOM();
-    loadAngular(angularLoaded);
+    Comptroller.Foundation.boot();
 };
 
 boot();
