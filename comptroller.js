@@ -12,7 +12,7 @@
  *    near the end of this file.
  *
  * KNOWN BUGS:
- *  - Upgrades are over-valued.
+ *  - Plenty of division-by-zero when you have zero CPS.
  *  - The X in the upper-right does not close the Comptroller. (Click on the 
  *    Comptroller button again, or any of the other menu buttons.)
  *
@@ -39,14 +39,6 @@
 
 var _Comptroller = function _Comptroller(Game) {
     "use strict";
-
-    // in minutes
-    // FIXME: Check math for how multipliers combine. I fear we're over-estimating in the case
-    // where there's already a global multiplier.
-    var timeToRepayUpgrade = function timeToRepayUpgrade(cost, multiplier) {
-        var gainedCPS = Game.cookiesPs * multiplier;
-        return cost / gainedCPS / 60;
-    };
 
     var _prefixes = ['', 'kilo', 'mega', 'giga', 'tera', 'peta', 'exa', 'zetta', 'yotta'];
 
@@ -170,7 +162,6 @@ var _Comptroller = function _Comptroller(Game) {
     };
 
     return {
-        timeToRepayUpgrade: timeToRepayUpgrade,
         timePerCookie: timePerCookie,
         enoughDigits: enoughDigits,
         metricPrefixed: metricPrefixed,
@@ -235,11 +226,18 @@ var ComptrollerController = function ComptrollerController($scope, CookieClicker
     $scope.storeObjects = function () { return CookieClicker.ObjectsById; };
     $scope.storeUpgrades = function () { return CookieClicker.UpgradesInStore; };
     $scope.enoughDigits = Comptroller.enoughDigits;
-    $scope.timeToRepayUpgrade = Comptroller.timeToRepayUpgrade;
 
     $scope.investmentSize = function () { return CookieClicker.cookiesPs * 60 * 20 * 10; };
 
     $scope.comptrollerVisible = function () { return CookieClicker.onMenu === "comptroller"; };
+
+    var globalMultNoFrenzy = function globalMultNoFrenzy () {
+        if (CookieClicker.frenzy > 0) {
+            return CookieClicker.globalCpsMult / CookieClicker.frenzyPower;
+        } else {
+            return CookieClicker.globalCpsMult;
+        }
+    }
 
     $scope.store = {
         incrementalValue: function (obj) {
@@ -248,15 +246,81 @@ var ComptrollerController = function ComptrollerController($scope, CookieClicker
         upgradeValue: function (upgrade) {
             /* Cookie flavours have data on their modifiers. Many others don't. */
             if (upgrade.type === 'cookie' && upgrade.power) {
-                return upgrade.power / 100;
+                var multiplierAdd = upgrade.power / 100;
+                return multiplierAdd / globalMultNoFrenzy();
             } else {
                 return undefined;
             }
+        },
+        // in minutes
+        timeToRepayUpgrade: function timeToRepayUpgrade(upgrade) {
+            var multiplier = $scope.store.upgradeValue(upgrade); 
+            var gainedCPS = CookieClicker.cookiesPs * multiplier;
+            return upgrade.basePrice / gainedCPS / 60;
         },
         minutesToRepay: function (obj) {
             return obj.price / (obj.storedCps * CookieClicker.globalCpsMult) / 60;
         }
     };
+    
+    var calculator = {
+        currentCPS: function (domain) {
+            var cps;
+            if (!domain) { // global
+                cps = CookieClicker.cookiesPs;
+            } else {
+                cps = domain.storedTotalCps;
+            }
+            return cps;
+        },
+        multiplier: function (domain, add) {
+            var mult;
+            if (!domain) { // global
+                // additions to the global multiplier stack additively, they do 
+                // not compound. So adding a 2x multiplier to an existing 4x is
+                // a +50% upgrade, not +100%.
+                mult = add / globalMultNoFrenzy();
+            } else {
+                // Doublers for objects *do* compound, although the variety of 
+                // modifiers (addition to base CPS and post-multiplier bonus)
+                // means there are details not expressed in this single number.
+                mult = add;
+            }
+            return mult;
+        },        
+        cpsGain: function cpsGain(domain, add) {
+            var cps = calculator.currentCPS(domain),
+                multi = calculator.multiplier(domain, add);
+            return cps * multi;
+        },
+        incrementalValue: function incrementalValue(domain, add) {
+            return calculator.cpsGain(domain, add) / CookieClicker.cookiesPs;
+        },
+        // in minutes
+        timeToRepay: function (upgrade, domain, add) {
+            var cpsGain = calculator.cpsGain(domain, add);
+            return (upgrade.basePrice / cpsGain / 60);
+        },
+        selectedIncValue: function () {
+            if ($scope.selectedUpgrade && $scope.selectedUpgradeAdd) {
+                return calculator.incrementalValue($scope.selectedUpgradeDomain, 
+                    $scope.selectedUpgradeAdd / 100);
+            } else {
+                return undefined;
+            }
+        },
+        selectedTTR: function () {
+            if ($scope.selectedUpgrade && $scope.selectedUpgradeAdd) {
+                return calculator.timeToRepay($scope.selectedUpgrade, 
+                    $scope.selectedUpgradeDomain, 
+                    $scope.selectedUpgradeAdd / 100);
+            } else {
+                return undefined;
+            }
+        }
+    };
+    
+    $scope.calculator = calculator;
 };
 
 
@@ -323,6 +387,10 @@ var ComptrollerAssets = {
         "#comptroller .pctInput {\n" +
         "width: 4em;" +
         "}\n\n" +
+        "#comptroller .description q {\n" +
+        "    display:block; position:relative; text-align:right; " +
+        "    margin-top:8px; font-style:italic; opacity:0.7;" +
+        "}\n" +
         /* this is very much mirroring the styles of the game's logButton */
         "#comptrollerButton {\n" +
         "top: 0; right: -16px;" +
@@ -346,7 +414,8 @@ var ComptrollerAssets = {
             /* store */
             "<table class='comptrollerStore'>\n" +
             /* headers */
-            "<tr><th>Price<br />(C)</th><th>Name</th><th>Price<br />(min)</th>" +
+            "<tr><th>Price (<img src='img/money.png' alt='cookies' />)</th>" + 
+            "<th>Name</th><th>Price<br />(min)</th>" +
             "<th>Incremental<br />Value %</th><th>Time to Repay<br/>(min)</th></tr>\n" +
             /* objects */
             "<tbody>\n" +
@@ -363,19 +432,25 @@ var ComptrollerAssets = {
             "    <td style='text-align: left'>{{ obj.name }}</td>" +
             "    <td style='text-align: right'>{{ cookiesToMinutes(obj.basePrice) | number:1 }}</td>" +
             "    <td style='text-align: right'>{{ store.upgradeValue(obj) * 100 || '?' | number }}%</td>" +
-            "    <td style='text-align: right'>{{ timeToRepayUpgrade(obj.basePrice, store.upgradeValue(obj)) | number:1 }}</td>" +
+            "    <td style='text-align: right'>{{ store.timeToRepayUpgrade(obj) | number:1 }}</td>" +
             "</tr>\n" +
             "</tbody>\n" +
-            /* calculator */
-            "<tbody><tr>" +
+         /* calculator */
+        "<tbody><tr><th colspan='5'>Upgrade Calculator</th></tr>\n" + 
+        "<tr>\n" +
         "    <td style='text-align: right'>{{ selectedUpgrade.basePrice | number:0 }}</td>" +
         "    <td>{{ selectedUpgrade.name }}</td>" +
         "    <td style='text-align: right'>{{ cookiesToMinutes(selectedUpgrade.basePrice) | number:1 }}</td>" +
-        "    <td style='text-align: right'><input type='number' class='pctInput' ng-model='upgradePercent'>%</td>" +
-        "    <td style='text-align: right'>{{ timeToRepayUpgrade(selectedUpgrade.basePrice, upgradePercent / 100) | number:1 }}</td>" +
-        "</tr>\n<tr>" +
-        "    <td colspan='5' class='description' ng-bind-html-unsafe='selectedUpgrade.desc'></td>\n" +
-        "</tr></tbody>" +
+        "    <td colspan='2' rowspan='2'></td></tr>\n" +
+        "<tr><td colspan='3' class='description' ng-bind-html-unsafe='selectedUpgrade.desc'></td></tr>\n" +
+        "<tr><td colspan='3'>Modifies: " + 
+        "    <select ng-model='selectedUpgradeDomain' ng-options='obj.name for obj in storeObjects()'>\n" + 
+        "        <option value=''>*global*</option>\n" + 
+        "    </select><br />\n" + 
+        "Multiplier Add: +<input type='number' ng-model='selectedUpgradeAdd' class='pctInput' required />%</td>" +
+        "<td style='text-align: right'>{{ calculator.selectedIncValue() * 100 | number }}%</td>" +
+        "<td style='text-align: right'>{{ calculator.selectedTTR() | number:1 }}</td>" +
+        "</tr>\n</tbody>" +
         "</table>\n" +
         "</div>\n")
 };
