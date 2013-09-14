@@ -351,28 +351,28 @@ var ComptrollerAssets = {
             /* objects */
             "<tbody>\n" +
             "    <tr ng-repeat='obj in storeObjects()'>" +
-            "    <td style='text-align: right'>{{ obj.price | number:0 }}</th>" +
-            "    <td style='text-align: left'>{{ obj.name }}</th>" +
-            "    <td style='text-align: right'>{{ cookiesToMinutes(obj.price) | number:1 }}</th>" +
-            "    <td style='text-align: right'>{{ store.incrementalValue(obj) * 100 | number }}%</th>" +
-            "    <td style='text-align: right'>{{ store.minutesToRepay(obj) | number:1 }}</th>" +
+            "    <td style='text-align: right'>{{ obj.price | number:0 }}</td>" +
+            "    <td style='text-align: left'>{{ obj.name }}</td>" +
+            "    <td style='text-align: right'>{{ cookiesToMinutes(obj.price) | number:1 }}</td>" +
+            "    <td style='text-align: right'>{{ store.incrementalValue(obj) * 100 | number }}%</td>" +
+            "    <td style='text-align: right'>{{ store.minutesToRepay(obj) | number:1 }}</td>" +
             "</tr>\n" +
             /* upgrades */
             "<tr ng-repeat='obj in storeUpgrades()'>" +
-            "    <td style='text-align: right'>{{ obj.basePrice | number:0 }}</th>" +
-            "    <td style='text-align: left' ng-click='$parent.selectedUpgrade = obj'>{{ obj.name }}</th>" +
-            "    <td style='text-align: right'>{{ cookiesToMinutes(obj.basePrice) | number:1 }}</th>" +
-            "    <td style='text-align: right'>{{ store.upgradeValue(obj) * 100 || '?' | number }}%</th>" +
-            "    <td style='text-align: right'>{{ timeToRepayUpgrade(obj.basePrice, store.upgradeValue(obj)) | number:1 }}</th>" +
+            "    <td style='text-align: right'>{{ obj.basePrice | number:0 }}</td>" +
+            "    <td style='text-align: left' ng-click='$parent.selectedUpgrade = obj'>{{ obj.name }}</td>" +
+            "    <td style='text-align: right'>{{ cookiesToMinutes(obj.basePrice) | number:1 }}</td>" +
+            "    <td style='text-align: right'>{{ store.upgradeValue(obj) * 100 || '?' | number }}%</td>" +
+            "    <td style='text-align: right'>{{ timeToRepayUpgrade(obj.basePrice, store.upgradeValue(obj)) | number:1 }}</td>" +
             "</tr>\n" +
             "</tbody>\n" +
             /* calculator */
             "<tbody><tr>" +
-        "    <td style='text-align: right'>{{ selectedUpgrade.basePrice | number:0 }}</th>" +
-        "    <td>{{ selectedUpgrade.name }}</th>" +
-        "    <td style='text-align: right'>{{ cookiesToMinutes(selectedUpgrade.basePrice) | number:1 }}</th>" +
-        "    <td style='text-align: right'><input type='number' class='pctInput' ng-model='upgradePercent'>%</th>" +
-        "    <td style='text-align: right'>{{ timeToRepayUpgrade(selectedUpgrade.basePrice, upgradePercent / 100) | number:1 }}</td></th>" +
+        "    <td style='text-align: right'>{{ selectedUpgrade.basePrice | number:0 }}</td>" +
+        "    <td>{{ selectedUpgrade.name }}</td>" +
+        "    <td style='text-align: right'>{{ cookiesToMinutes(selectedUpgrade.basePrice) | number:1 }}</td>" +
+        "    <td style='text-align: right'><input type='number' class='pctInput' ng-model='upgradePercent'>%</td>" +
+        "    <td style='text-align: right'>{{ timeToRepayUpgrade(selectedUpgrade.basePrice, upgradePercent / 100) | number:1 }}</td>" +
         "</tr>\n<tr>" +
         "    <td colspan='5' class='description' ng-bind-html-unsafe='selectedUpgrade.desc'></td>\n" +
         "</tr></tbody>" +
