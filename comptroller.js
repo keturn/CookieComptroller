@@ -23,7 +23,7 @@
  *  - rework display of principal investment (for Lucky! multiplier cookies)
  *  - show theoretical return on investment from golden cookies
  *  - make userscript-compatible
- *  - streamline upgrade cost/benefit calculator
+ *  - document and streamline upgrade cost/benefit calculator
  *  - calculator: add option to express upgrade as percentage of a single item
  *  - add to shop: time (or date) of "total time to break even"
  *  - replace obsolete unit of time "minutes" with more contemporary "loops of Ylvis' The Fox"
@@ -358,9 +358,9 @@ var ComptrollerAssets = {
             "    <td style='text-align: right'>{{ store.minutesToRepay(obj) | number:1 }}</td>" +
             "</tr>\n" +
             /* upgrades */
-            "<tr ng-repeat='obj in storeUpgrades()'>" +
+            "<tr ng-repeat='obj in storeUpgrades()' ng-click='$parent.selectedUpgrade = obj'>" +
             "    <td style='text-align: right'>{{ obj.basePrice | number:0 }}</td>" +
-            "    <td style='text-align: left' ng-click='$parent.selectedUpgrade = obj'>{{ obj.name }}</td>" +
+            "    <td style='text-align: left'>{{ obj.name }}</td>" +
             "    <td style='text-align: right'>{{ cookiesToMinutes(obj.basePrice) | number:1 }}</td>" +
             "    <td style='text-align: right'>{{ store.upgradeValue(obj) * 100 || '?' | number }}%</td>" +
             "    <td style='text-align: right'>{{ timeToRepayUpgrade(obj.basePrice, store.upgradeValue(obj)) | number:1 }}</td>" +
