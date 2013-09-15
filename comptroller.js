@@ -39,6 +39,15 @@
  */
 /*global Game, angular, console */
 
+/* As much as possible, I try to determine relevant direct from the game objects, but there are a
+ * few that we've specified manually. These could potentially get out of sync.
+ * Last verified for Cookie Clicker version 1.036. */
+var CCConstants = {
+    // From Game.goldenCookie.click
+    GOLDEN_MULTIPLY_FACTOR: 0.1,
+    GOLDEN_MULTIPLY_CAP: 60 * 20
+};
+
 var _Comptroller = function _Comptroller(Game) {
     "use strict";
 
@@ -229,7 +238,7 @@ var ComptrollerController = function ComptrollerController($scope, CookieClicker
     $scope.storeUpgrades = function () { return CookieClicker.UpgradesInStore; };
     $scope.enoughDigits = Comptroller.enoughDigits;
 
-    $scope.investmentSize = function () { return CookieClicker.cookiesPs * 60 * 20 * 10; };
+    $scope.investmentSize = function () { return CookieClicker.cookiesPs * CCConstants.GOLDEN_MULTIPLY_CAP / CCConstants.GOLDEN_MULTIPLY_FACTOR; };
 
     $scope.comptrollerVisible = function () { return CookieClicker.onMenu === "comptroller"; };
 
