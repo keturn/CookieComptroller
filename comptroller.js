@@ -17,18 +17,20 @@
  *    Comptroller button again, or any of the other menu buttons.)
  *
  * TODO:
+ *  - make userscript-compatible
  *  - inspect Cookie Clicker version for possible compatibility mismatches
  *  - report on handmade cookies during frenzy activity
  *  - report historical CPS, with expected vs realized
  *  - rework display of principal investment (for Lucky! multiplier cookies)
  *  - show theoretical return on investment from golden cookies
- *  - make userscript-compatible
  *  - document and streamline upgrade cost/benefit calculator
- *  - calculator: add option to express upgrade as percentage of a single item
+ *  - calculator: add option to express upgrade as either additive or compounding
  *  - add to shop: time (or date) of "total time to break even"
  *  - replace obsolete unit of time "minutes" with more contemporary "loops of Ylvis' The Fox"
  *  - report on how much income comes from each source
  *  - report on total spent on each source
+ *  - show how many Heavenly Chips this run is worth, time to next chip
+ *  - offer suggestions of when to end it all for the prestige gain
  *
  * Anti-Goals:
  *  - Duplication of item tables. As cool as it would be to calculate the effects of all the
@@ -284,6 +286,9 @@ var ComptrollerController = function ComptrollerController($scope, CookieClicker
                 // additions to the global multiplier stack additively, they do 
                 // not compound. So adding a 2x multiplier to an existing 4x is
                 // a +50% upgrade, not +100%.
+                // Actually, it turns out it's more complicated than that: 
+                // flavoured cookies, bingo-research products, and heavenly chips
+                // are additive, but kitten workers do compound.
                 mult = add / globalMultNoFrenzy();
             } else {
                 // Doublers for objects *do* compound, although the variety of 
@@ -426,7 +431,7 @@ var ComptrollerAssets = {
             "<tbody>\n" +
             "    <tr ng-repeat='obj in storeObjects()'>" +
             "    <td style='text-align: right'>{{ obj.price | number:0 }}</td>" +
-            "    <td style='text-align: left'>{{ obj.name }}</td>" +
+            "    <td style='text-align: left' ng-bind-html-unsafe='obj.name'></td>" +
             "    <td style='text-align: right'>{{ cookiesToMinutes(obj.price) | number:1 }}</td>" +
             "    <td style='text-align: right'>{{ store.incrementalValue(obj) * 100 | number }}%</td>" +
             "    <td style='text-align: right'>{{ store.minutesToRepay(obj) | number:1 }}</td>" +
@@ -434,7 +439,7 @@ var ComptrollerAssets = {
             /* upgrades */
             "<tr ng-repeat='obj in storeUpgrades()' ng-click='$parent.selectedUpgrade = obj'>" +
             "    <td style='text-align: right'>{{ obj.basePrice | number:0 }}</td>" +
-            "    <td style='text-align: left'>{{ obj.name }}</td>" +
+            "    <td style='text-align: left' ng-bind-html-unsafe='obj.name'></td>" +
             "    <td style='text-align: right'>{{ cookiesToMinutes(obj.basePrice) | number:1 }}</td>" +
             "    <td style='text-align: right'>{{ store.upgradeValue(obj) * 100 || '?' | number }}%</td>" +
             "    <td style='text-align: right'>{{ store.timeToRepayUpgrade(obj) | number:1 }}</td>" +
