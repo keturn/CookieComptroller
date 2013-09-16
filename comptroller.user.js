@@ -6,10 +6,6 @@
  *
  * Usage notes:
  *  - Access the comptroller from the button to the right of the news ticker.
- *  - loading this script drops you down to 4 FPS. *This is intentional,* but
- *    it's a matter of preference, not a requirement of Comptroller. It should be
- *    optional. For now you may comment out the lowFPS() call in the boot function
- *    near the end of this file.
  *
  * KNOWN BUGS:
  *  - Upgrade valuations are wrong, under-valuing upgrades when you have kitten workers and milk.
@@ -44,6 +40,13 @@
  *    very significant issue though: it makes Golden Cookies spawn *under* the Comptroller UI
  *    if you have it open at the time. You have to close it (or switch to another menu) to click on the cookie.
  */
+// ==UserScript==
+// @name Cookie Comptroller
+// @description Reports on your Cookie Clicker accounting.
+// @match http://orteil.dashnet.org/cookieclicker/
+// @version 0.1
+// @namespace http://keturn.net/
+// ==/UserScript==
 
 /*global Game, angular, console */
 
@@ -548,6 +551,14 @@ var boot = function () {
 var extension_boot = function extension_boot () {
     "use strict";
     loadAngular(function () {
+        // make it so appending #lowFPS to the game URL has us in low-FPS mode.
+        if (window.location.hash.match(/lowFPS/)) {
+            // kludgey, but this ran before Game was set up before.
+            setTimeout(
+                function () { execute('(' + lowFPS + ')(Game);'); },
+                5000
+            );
+        }
         execute('Comptroller = (' + _Comptroller.toString() + ')(Game);');
         execute('Comptroller.Foundation.boot()');
     });
