@@ -296,8 +296,21 @@ var ComptrollerController = function ComptrollerController($scope, CookieClicker
     };
 
     $scope.selectedUpgrade = undefined;
+};
+
+var CalculatorController = function ($scope, CookieClicker) {
+    "use strict";
     $scope.selectedUpgradeDomain = null;
     $scope.selectedUpgradeAdd = 0;
+
+    // FIXME: This should go on the CookieClicker Service
+    var globalMultNoFrenzy = function globalMultNoFrenzy () {
+        if (CookieClicker.frenzy > 0) {
+            return CookieClicker.globalCpsMult / CookieClicker.frenzyPower;
+        } else {
+            return CookieClicker.globalCpsMult;
+        }
+    };
 
     //noinspection UnnecessaryLocalVariableJS
     var calculator = {
@@ -476,7 +489,7 @@ var ComptrollerAssets = {
             "</tr>\n" +
             "</tbody>\n" +
          /* calculator */
-        "<tbody><tr><th colspan='5'>Upgrade Calculator</th></tr>\n" + 
+        "<tbody ng-controller='CalculatorController'><tr><th colspan='5'>Upgrade Calculator</th></tr>\n" +
         "<tr>\n" +
         "    <td style='text-align: right'>{{ selectedUpgrade.basePrice | number:0 }}</td>" +
         "    <td>{{ selectedUpgrade.name }}</td>" +
