@@ -47,84 +47,184 @@
 
 /*global Game, angular, console */
 
-/* As much as possible, I try to determine relevant factors direct from the game objects, but there are a
- * few that we've specified manually. These could potentially get out of sync.
- * Last verified for Cookie Clicker version 1.036. */
-var CCConstants = {
-    // From Game.goldenCookie.click
-    GOLDEN_MULTIPLY_FACTOR: 0.1,
-    GOLDEN_MULTIPLY_CAP: 60 * 20
-};
 
-/* String formatting functions. Purely functional with no game logic or advanced object types. */
-var CCFormatUtils = (function () {
-    "use strict";
-    var _prefixes = ['', 'kilo', 'mega', 'giga', 'tera', 'peta', 'exa', 'zetta', 'yotta'];
-
-    return {
-        /* Given n1 and n2, how many decimal places does n1 need such that, when
-         * expressed in engineering notation, its final digit is the same scale as
-         * the leading digit in n2?
-         *
-         * For example,   /  /
-         * enoughDigits(12345678,
-         *                 54321) = 2
-         * because the '4' in 12.34e6 lines up with the leading digit in '54321.'
-         *
-         * The motivating factor here is to display large values in sufficient detail to still see
-         * them tick up with cookies per second.
-         */
-        enoughDigits: function enoughDigits(n1, n2) {
-            var rootDigit, n1digits, n2digits;
-            n1digits = Math.ceil(Math.log(n1) / Math.LN10);
-            n2digits = Math.ceil(Math.log(n2) / Math.LN10);
-            if (n2digits >= n1digits) {
-                return 0;
-            }
-            rootDigit = Math.floor((n1digits - 1) / 3) * 3 + 1;
-            return rootDigit - n2digits;
-        },
-
-
-        /* Display a number with its metric prefix. e.g. 12345678 = "12.3 mega"
-         *
-         * precision: defaults to 4
-         * fixed: if true, number will be formatted with Number.toFixed,
-         * else it defaults to Number.toPrecision
-         */
-        metricPrefixed: function metricPrefixed(n, precision, fixed) {
-            var scaled, scaledStr, prefixIndex = Math.floor(Math.log(Math.abs(n)) / (Math.LN10 * 3));
-            prefixIndex = Math.min(prefixIndex, _prefixes.length - 1);
-            scaled = n / (Math.pow(1000, prefixIndex));
-
-            if (precision === undefined) {
-                precision = 4;
-            }
-            scaledStr = fixed ? scaled.toFixed(precision) : scaled.toPrecision(precision);
-            return scaledStr + " " + _prefixes[prefixIndex];
-        },
-
-
-        /* How many minutes does it take to make a zillion cookies?
-         * Where "a zillion" is the lowest power of 1000 such that the answer is greater than 1.
-         *
-         * e.g. 10 cookies per second = 600 cookies per minute = 1.67 minutes per kilocookie.
-         */
-        timePerCookie: function timePerCookie(cookiesPs) {
-            var secondsPerCookie = 1 / cookiesPs;
-            var minsPer = secondsPerCookie / 60;
-            var prefix = '', prefixes = ['kilo', 'mega', 'giga', 'tera', 'peta', 'exa', 'zetta', 'yotta'];
-            while (minsPer < 1 && prefixes.length) {
-                minsPer = minsPer * 1000;
-                prefix = prefixes.shift();
-            }
-            return minsPer.toPrecision(3) + " minutes per " + prefix + "cookie";
-        }
-    };
-})();
 
 var _Comptroller = function _Comptroller(Game) {
     "use strict";
+
+    /* As much as possible, I try to determine relevant factors direct from the game objects, but there are a
+     * few that we've specified manually. These could potentially get out of sync.
+     * Last verified for Cookie Clicker version 1.036. */
+    var CCConstants = {
+        // From Game.goldenCookie.click
+        GOLDEN_MULTIPLY_FACTOR: 0.1,
+        GOLDEN_MULTIPLY_CAP: 60 * 20
+    };
+
+    /* String formatting functions. Purely functional with no game logic or advanced object types. */
+    var CCFormatUtils = (function () {
+        var _prefixes = ['', 'kilo', 'mega', 'giga', 'tera', 'peta', 'exa', 'zetta', 'yotta'];
+
+        return {
+            /* Given n1 and n2, how many decimal places does n1 need such that, when
+             * expressed in engineering notation, its final digit is the same scale as
+             * the leading digit in n2?
+             *
+             * For example,   /  /
+             * enoughDigits(12345678,
+             *                 54321) = 2
+             * because the '4' in 12.34e6 lines up with the leading digit in '54321.'
+             *
+             * The motivating factor here is to display large values in sufficient detail to still see
+             * them tick up with cookies per second.
+             */
+            enoughDigits: function enoughDigits(n1, n2) {
+                var rootDigit, n1digits, n2digits;
+                n1digits = Math.ceil(Math.log(n1) / Math.LN10);
+                n2digits = Math.ceil(Math.log(n2) / Math.LN10);
+                if (n2digits >= n1digits) {
+                    return 0;
+                }
+                rootDigit = Math.floor((n1digits - 1) / 3) * 3 + 1;
+                return rootDigit - n2digits;
+            },
+
+
+            /* Display a number with its metric prefix. e.g. 12345678 = "12.3 mega"
+             *
+             * precision: defaults to 4
+             * fixed: if true, number will be formatted with Number.toFixed,
+             * else it defaults to Number.toPrecision
+             */
+            metricPrefixed: function metricPrefixed(n, precision, fixed) {
+                var scaled, scaledStr, prefixIndex = Math.floor(Math.log(Math.abs(n)) / (Math.LN10 * 3));
+                prefixIndex = Math.min(prefixIndex, _prefixes.length - 1);
+                scaled = n / (Math.pow(1000, prefixIndex));
+
+                if (precision === undefined) {
+                    precision = 4;
+                }
+                scaledStr = fixed ? scaled.toFixed(precision) : scaled.toPrecision(precision);
+                return scaledStr + " " + _prefixes[prefixIndex];
+            },
+
+
+            /* How many minutes does it take to make a zillion cookies?
+             * Where "a zillion" is the lowest power of 1000 such that the answer is greater than 1.
+             *
+             * e.g. 10 cookies per second = 600 cookies per minute = 1.67 minutes per kilocookie.
+             */
+            timePerCookie: function timePerCookie(cookiesPs) {
+                var secondsPerCookie = 1 / cookiesPs;
+                var minsPer = secondsPerCookie / 60;
+                var prefix = '', prefixes = ['kilo', 'mega', 'giga', 'tera', 'peta', 'exa', 'zetta', 'yotta'];
+                while (minsPer < 1 && prefixes.length) {
+                    minsPer = minsPer * 1000;
+                    prefix = prefixes.shift();
+                }
+                return minsPer.toPrecision(3) + " minutes per " + prefix + "cookie";
+            }
+        };
+    })();
+
+    /* This is not a great way to store and edit CSS and HTML! But Chrome userscripts don't
+     * provide a way to bundle other assets besides the javascript. */
+    var ComptrollerAssets = {
+        CSS: ("#comptroller {\n" +
+            "color: white;" +
+            "/* menu container, even when empty, will transparently hover over our content, so we have to one-up it. */\n" +
+            "z-index:1000001; position:absolute; left:16px; right:0px; top:112px;\n" +
+            "}\n\n" +
+            "#comptroller b {\n" + // screw you, reset stylesheets
+            "font-weight: bolder;" +
+            "}\n\n" +
+            ".comptrollerStore {\n" +
+            "border-collapse: separate; border-spacing: 1px;" +
+            "}\n\n" +
+            ".comptrollerStore td, th {\n" +
+            "    padding: 1px 1ex;" +
+            "}\n" +
+            ".comptrollerStore td {\n" +
+            "background-color: #000A24;" +
+            "}\n\n" +
+            ".comptrollerStore tr:nth-of-type(odd) td {\n" +
+            "background-color: #101A3C;" +
+            "}\n\n" +
+            ".comptrollerStore th {\n" +
+            "font-weight: bolder;" +
+            "background-color: #240A24;" +
+            "vertical-align: bottom;" +
+            "}\n\n" +
+            "#comptroller .pctInput {\n" +
+            "width: 4em;" +
+            "}\n\n" +
+            "#comptroller .description q {\n" +
+            "    display:block; position:relative; text-align:right; " +
+            "    margin-top:8px; font-style:italic; opacity:0.7;" +
+            "}\n" +
+            /* this is very much mirroring the styles of the game's logButton */
+            "#comptrollerButton {\n" +
+            "top: 0; right: -16px;" +
+            "font-size: 80%;" +
+            "padding: 14px 16px 10px 0px;" +
+            "}\n\n" +
+            "#comptrollerButton:hover{right:-8px;}" +
+            "}\n\n"),
+        HTML: ("<div ng-controller='ComptrollerController' ng-show='comptrollerVisible()'>\n" +
+            /* frenzy? */
+            "<p ng-show='Game.frenzy'>&#xa1;&#xa1;FRENZY!! " +
+            "{{ Game.frenzyPower * 100 }}% for {{ (Game.frenzy / Game.fps).toFixed(1) }} seconds.</p>\n" +
+            "<p ng-show='Game.clickFrenzy'>&#x2606;&#x2605;&#x2606; CLICK FRENZY!! &#x2606;&#x2605;&#x2606; " +
+            "{{ Game.computedMouseCps | metricPrefixed }}cookies per click for {{ (Game.clickFrenzy / Game.fps).toFixed(1) }} seconds.</p>\n" +
+            /* total cookies and rates */
+            "<p>{{ Game.cookies | metricPrefixed:enoughDigits(Game.cookies, Game.cookiesPs):true }}cookies " +
+            "(investment {{ (Game.cookies > investmentSize()) && '+' || '' }}{{ Game.cookies - investmentSize() | metricPrefixed }}cookies) at<br />\n" +
+            "{{ Game.cookiesPs | metricPrefixed }}cookies per second, {{ Game.cookiesPs * 60 | metricPrefixed }}cookies per minute, or <br />\n" +
+            "{{ timePerCookie() }}.</p>\n" +
+            /* store */
+            "<table class='comptrollerStore'>\n" +
+            /* headers */
+            "<tr><th>Price (<img src='img/money.png' alt='cookies' />)</th>" +
+            "<th>Name</th><th>Price<br />(min)</th>" +
+            "<th>Incremental<br />Value %</th><th>Time to Repay<br/>(min)</th></tr>\n" +
+            /* objects */
+            "<tbody>\n" +
+            "    <tr ng-repeat='obj in storeObjects()'>" +
+            "    <td style='text-align: right'>{{ obj.price | number:0 }}</td>" +
+            "    <td style='text-align: left' ng-bind-html-unsafe='obj.name'></td>" +
+            "    <td style='text-align: right'>{{ cookiesToMinutes(obj.price) | number:1 }}</td>" +
+            "    <td style='text-align: right'>{{ store.incrementalValue(obj) * 100 | number }}%</td>" +
+            "    <td style='text-align: right'>{{ store.minutesToRepay(obj) | number:1 }}</td>" +
+            "</tr>\n" +
+            /* upgrades */
+            "<tr ng-repeat='obj in storeUpgrades()' ng-click='$parent.selectedUpgrade = obj'>" +
+            "    <td style='text-align: right'>{{ obj.basePrice | number:0 }}</td>" +
+            "    <td style='text-align: left' ng-bind-html-unsafe='obj.name'></td>" +
+            "    <td style='text-align: right'>{{ cookiesToMinutes(obj.basePrice) | number:1 }}</td>" +
+            "    <td style='text-align: right'>{{ store.upgradeValue(obj) * 100 || '?' | number }}%</td>" +
+            "    <td style='text-align: right'>{{ store.timeToRepayUpgrade(obj) | number:1 }}</td>" +
+            "</tr>\n" +
+            "</tbody>\n" +
+            /* calculator */
+            "<tbody ng-controller='CalculatorController'><tr><th colspan='5'>Upgrade Calculator</th></tr>\n" +
+            "<tr>\n" +
+            "    <td style='text-align: right'>{{ selectedUpgrade.basePrice | number:0 }}</td>" +
+            "    <td>{{ selectedUpgrade.name }}</td>" +
+            "    <td style='text-align: right'>{{ cookiesToMinutes(selectedUpgrade.basePrice) | number:1 }}</td>" +
+            "    <td colspan='2' rowspan='2'></td></tr>\n" +
+            "<tr><td colspan='3' class='description' ng-bind-html-unsafe='selectedUpgrade.desc'></td></tr>\n" +
+            "<tr><td colspan='3'>Modifies: " +
+            "    <select ng-model='selectedUpgradeDomain' ng-options='obj.name for obj in storeObjects()'>\n" +
+            "        <option value=''>*global*</option>\n" +
+            "    </select><br />\n" +
+            "Multiplier Add: +<input type='number' ng-model='selectedUpgradeAdd' class='pctInput' required />%</td>" +
+            "<td style='text-align: right'>{{ calculator.selectedIncValue() * 100 | number }}%</td>" +
+            "<td style='text-align: right'>{{ calculator.selectedTTR() | number:1 }}</td>" +
+            "</tr>\n</tbody>" +
+            "</table>\n" +
+            "</div>\n")
+    };
+
 
     // stuff that happens before the Angular app is loaded.
     var Foundation = {
@@ -157,13 +257,6 @@ var _Comptroller = function _Comptroller(Game) {
             angular.bootstrap(rootElement, ["cookieComptroller"]);
             return rootElement;
         },
-        installPrereqs: function installPrereqs(callback) {
-            Foundation.loadCSS();
-            loadAngular(function () {
-                defineServices();
-                callback();
-            });
-        },
         loadCSS: function loadCSS() {
             var style = document.createElement("style");
             style.id = "comptrollerStyle";
@@ -184,7 +277,9 @@ var _Comptroller = function _Comptroller(Game) {
             return div;
         },
         boot: function boot() {
-            Foundation.installPrereqs(Foundation.addComptroller);
+            Foundation.loadCSS();
+            defineServices();
+            Foundation.addComptroller();
             Foundation.addComptrollerButton();
         }
     };
@@ -237,7 +332,7 @@ var _Comptroller = function _Comptroller(Game) {
 
 
     var ComptrollerController = function ComptrollerController($scope, CookieClicker) {
-        // The organization here is still quite confused. Which things go
+        // The organization here is still rather confused. Which things go
         // on the model, which things go on the scope? How much direct access
         // to the model should the view have? Should we ever allow the view
         // to access the original Game object, or should we always have it go
@@ -384,7 +479,6 @@ var _Comptroller = function _Comptroller(Game) {
         Foundation: Foundation
     };
 };
-var Comptroller = _Comptroller(Game);
 
 /* Reconfigure Cookie Clicker to run at 4 frames per second.
  *
@@ -439,109 +533,23 @@ function execute(functionOrCode) {
     return e;
 }
 
-/* This is not a great way to store and edit CSS and HTML! But Chrome userscripts don't 
- * provide a way to bundle other assets besides the javascript. */
-var ComptrollerAssets = {
-    CSS: ("#comptroller {\n" +
-        "color: white;" +
-        "/* menu container, even when empty, will transparently hover over our content, so we have to one-up it. */\n" +
-        "z-index:1000001; position:absolute; left:16px; right:0px; top:112px;\n" +
-        "}\n\n" +
-        "#comptroller b {\n" + // screw you, reset stylesheets
-        "font-weight: bolder;" +
-        "}\n\n" +
-        ".comptrollerStore {\n" +
-        "border-collapse: separate; border-spacing: 1px;" +
-        "}\n\n" +
-        ".comptrollerStore td, th {\n" +
-        "    padding: 1px 1ex;" +
-        "}\n" +
-        ".comptrollerStore td {\n" +
-        "background-color: #000A24;" +
-        "}\n\n" +
-        ".comptrollerStore tr:nth-of-type(odd) td {\n" +
-        "background-color: #101A3C;" +
-        "}\n\n" +
-        ".comptrollerStore th {\n" +
-        "font-weight: bolder;" +
-        "background-color: #240A24;" +
-        "vertical-align: bottom;" +
-        "}\n\n" +
-        "#comptroller .pctInput {\n" +
-        "width: 4em;" +
-        "}\n\n" +
-        "#comptroller .description q {\n" +
-        "    display:block; position:relative; text-align:right; " +
-        "    margin-top:8px; font-style:italic; opacity:0.7;" +
-        "}\n" +
-        /* this is very much mirroring the styles of the game's logButton */
-        "#comptrollerButton {\n" +
-        "top: 0; right: -16px;" +
-        "font-size: 80%;" +
-        "padding: 14px 16px 10px 0px;" +
-        "}\n\n" +
-        "#comptrollerButton:hover{right:-8px;}" +
-        "}\n\n"),
-    HTML: (
-        "<div ng-controller='ComptrollerController' ng-show='comptrollerVisible()'>\n" +
-            /* frenzy? */
-            "<p ng-show='Game.frenzy'>&#xa1;&#xa1;FRENZY!! " +
-            "{{ Game.frenzyPower * 100 }}% for {{ (Game.frenzy / Game.fps).toFixed(1) }} seconds.</p>\n" +
-            "<p ng-show='Game.clickFrenzy'>&#x2606;&#x2605;&#x2606; CLICK FRENZY!! &#x2606;&#x2605;&#x2606; " +
-            "{{ Game.computedMouseCps | metricPrefixed }}cookies per click for {{ (Game.clickFrenzy / Game.fps).toFixed(1) }} seconds.</p>\n" +
-            /* total cookies and rates */
-            "<p>{{ Game.cookies | metricPrefixed:enoughDigits(Game.cookies, Game.cookiesPs):true }}cookies " +
-            "(investment {{ (Game.cookies > investmentSize()) && '+' || '' }}{{ Game.cookies - investmentSize() | metricPrefixed }}cookies) at<br />\n" +
-            "{{ Game.cookiesPs | metricPrefixed }}cookies per second, {{ Game.cookiesPs * 60 | metricPrefixed }}cookies per minute, or <br />\n" +
-            "{{ timePerCookie() }}.</p>\n" +
-            /* store */
-            "<table class='comptrollerStore'>\n" +
-            /* headers */
-            "<tr><th>Price (<img src='img/money.png' alt='cookies' />)</th>" + 
-            "<th>Name</th><th>Price<br />(min)</th>" +
-            "<th>Incremental<br />Value %</th><th>Time to Repay<br/>(min)</th></tr>\n" +
-            /* objects */
-            "<tbody>\n" +
-            "    <tr ng-repeat='obj in storeObjects()'>" +
-            "    <td style='text-align: right'>{{ obj.price | number:0 }}</td>" +
-            "    <td style='text-align: left' ng-bind-html-unsafe='obj.name'></td>" +
-            "    <td style='text-align: right'>{{ cookiesToMinutes(obj.price) | number:1 }}</td>" +
-            "    <td style='text-align: right'>{{ store.incrementalValue(obj) * 100 | number }}%</td>" +
-            "    <td style='text-align: right'>{{ store.minutesToRepay(obj) | number:1 }}</td>" +
-            "</tr>\n" +
-            /* upgrades */
-            "<tr ng-repeat='obj in storeUpgrades()' ng-click='$parent.selectedUpgrade = obj'>" +
-            "    <td style='text-align: right'>{{ obj.basePrice | number:0 }}</td>" +
-            "    <td style='text-align: left' ng-bind-html-unsafe='obj.name'></td>" +
-            "    <td style='text-align: right'>{{ cookiesToMinutes(obj.basePrice) | number:1 }}</td>" +
-            "    <td style='text-align: right'>{{ store.upgradeValue(obj) * 100 || '?' | number }}%</td>" +
-            "    <td style='text-align: right'>{{ store.timeToRepayUpgrade(obj) | number:1 }}</td>" +
-            "</tr>\n" +
-            "</tbody>\n" +
-         /* calculator */
-        "<tbody ng-controller='CalculatorController'><tr><th colspan='5'>Upgrade Calculator</th></tr>\n" +
-        "<tr>\n" +
-        "    <td style='text-align: right'>{{ selectedUpgrade.basePrice | number:0 }}</td>" +
-        "    <td>{{ selectedUpgrade.name }}</td>" +
-        "    <td style='text-align: right'>{{ cookiesToMinutes(selectedUpgrade.basePrice) | number:1 }}</td>" +
-        "    <td colspan='2' rowspan='2'></td></tr>\n" +
-        "<tr><td colspan='3' class='description' ng-bind-html-unsafe='selectedUpgrade.desc'></td></tr>\n" +
-        "<tr><td colspan='3'>Modifies: " + 
-        "    <select ng-model='selectedUpgradeDomain' ng-options='obj.name for obj in storeObjects()'>\n" + 
-        "        <option value=''>*global*</option>\n" + 
-        "    </select><br />\n" + 
-        "Multiplier Add: +<input type='number' ng-model='selectedUpgradeAdd' class='pctInput' required />%</td>" +
-        "<td style='text-align: right'>{{ calculator.selectedIncValue() * 100 | number }}%</td>" +
-        "<td style='text-align: right'>{{ calculator.selectedTTR() | number:1 }}</td>" +
-        "</tr>\n</tbody>" +
-        "</table>\n" +
-        "</div>\n")
-};
 
 var boot = function () {
     "use strict";
     lowFPS(Game);
-    Comptroller.Foundation.boot();
+    loadAngular(function () {
+        window.Comptroller = _Comptroller(Game);
+        window.Comptroller.Foundation.boot();
+    });
 };
+// boot();
 
-boot();
+
+var extension_boot = function extension_boot () {
+    "use strict";
+    loadAngular(function () {
+        execute('Comptroller = (' + _Comptroller.toString() + ')(Game);');
+        execute('Comptroller.Foundation.boot()');
+    });
+};
+extension_boot();
