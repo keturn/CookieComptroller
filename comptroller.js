@@ -12,7 +12,8 @@
  *    near the end of this file.
  *
  * KNOWN BUGS:
- *  - Plenty of division-by-zero when you have zero CPS.
+ *  - Upgrade valuations are wrong, under-valuing upgrades when you have kitten workers and milk.
+ *  - Plenty of division-by-zero when you have zero CPS. 
  *  - The X in the upper-right does not close the Comptroller. (Click on the 
  *    Comptroller button again, or any of the other menu buttons.)
  *
@@ -33,13 +34,20 @@
  *  - offer suggestions of when to end it all for the prestige gain
  *
  * Anti-Goals:
+ *  - New game mechanics or items.
  *  - Duplication of item tables. As cool as it would be to calculate the effects of all the
  *    upgrades, I don't want to have item tables or multipliers that get out-of-sync with the game.
- *  - New game mechanics or items.
+ *    If you want an add-on that's really smart about upgrades, seek out Cookie Monster. It's great!
+ *
+ * Compatibility notes:
+ *  - You *can* use this at the same time as Cookie Monster. It mostly works just fine. There is one
+ *    very significant issue though: it makes Golden Cookies spawn *under* the Comptroller UI
+ *    if you have it open at the time. You have to close it (or switch to another menu) to click on the cookie.
  */
+
 /*global Game, angular, console */
 
-/* As much as possible, I try to determine relevant direct from the game objects, but there are a
+/* As much as possible, I try to determine relevant factors direct from the game objects, but there are a
  * few that we've specified manually. These could potentially get out of sync.
  * Last verified for Cookie Clicker version 1.036. */
 var CCConstants = {
@@ -137,6 +145,9 @@ var _Comptroller = function _Comptroller(Game) {
         addComptroller: function addComptroller() {
             var rootElement;
             rootElement = Foundation.addToDOM();
+            // Most Angular applications use the entire DOM. But since we don't control the entire DOM,
+            // we want to minimize the chances of conflicting with our host, so we're just bootstrapping
+            // angular on this single container and we'll have all our UI inside that.
             angular.bootstrap(rootElement, ["cookieComptroller"]);
             return rootElement;
         },
