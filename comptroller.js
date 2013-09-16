@@ -56,69 +56,74 @@ var CCConstants = {
     GOLDEN_MULTIPLY_CAP: 60 * 20
 };
 
-var _Comptroller = function _Comptroller(Game) {
+var CCFormatUtils = (function () {
     "use strict";
-
     var _prefixes = ['', 'kilo', 'mega', 'giga', 'tera', 'peta', 'exa', 'zetta', 'yotta'];
 
+    return {
+        /* Given n1 and n2, how many decimal places does n1 need such that, when
+         * expressed in engineering notation, its final digit is the same scale as
+         * the leading digit in n2?
+         *
+         * For example,   /  /
+         * enoughDigits(12345678,
+         *                 54321) = 2
+         * because the '4' in 12.34e6 lines up with the leading digit in '54321.'
+         *
+         * The motivating factor here is to display large values in sufficient detail to still see
+         * them tick up with cookies per second.
+         */
+        enoughDigits: function enoughDigits(n1, n2) {
+            var rootDigit, n1digits, n2digits;
+            n1digits = Math.ceil(Math.log(n1) / Math.LN10);
+            n2digits = Math.ceil(Math.log(n2) / Math.LN10);
+            if (n2digits >= n1digits) {
+                return 0;
+            }
+            rootDigit = Math.floor((n1digits - 1) / 3) * 3 + 1;
+            return rootDigit - n2digits;
+        },
 
-    /* Given n1 and n2, how many decimal places does n1 need such that, when 
-     * expressed in engineering notation, its final digit is the same scale as 
-     * the leading digit in n2?
-     *
-     * For example,   /  /
-     * enoughDigits(12345678, 
-     *                 54321) = 2
-     * because the '4' in 12.34e6 lines up with the leading digit in '54321.'
-     *
-     * The motivating factor here is to display large values in sufficient detail to still see
-     * them tick up with cookies per second.
-     */
-    var enoughDigits = function enoughDigits(n1, n2) {
-        var rootDigit, n1digits, n2digits;
-        n1digits = Math.ceil(Math.log(n1) / Math.LN10);
-        n2digits = Math.ceil(Math.log(n2) / Math.LN10);
-        if (n2digits >= n1digits) {
-            return 0;
+
+        /* Display a number with its metric prefix. e.g. 12345678 = "12.3 mega"
+         *
+         * precision: defaults to 4
+         * fixed: if true, number will be formatted with Number.toFixed,
+         * else it defaults to Number.toPrecision
+         */
+        metricPrefixed: function metricPrefixed(n, precision, fixed) {
+            var scaled, scaledStr, prefixIndex = Math.floor(Math.log(Math.abs(n)) / (Math.LN10 * 3));
+            prefixIndex = Math.min(prefixIndex, _prefixes.length - 1);
+            scaled = n / (Math.pow(1000, prefixIndex));
+
+            if (precision === undefined) {
+                precision = 4;
+            }
+            scaledStr = fixed ? scaled.toFixed(precision) : scaled.toPrecision(precision);
+            return scaledStr + " " + _prefixes[prefixIndex];
+        },
+
+
+        /* How many minutes does it take to make a zillion cookies?
+         * Where "a zillion" is the lowest power of 1000 such that the answer is greater than 1.
+         *
+         * e.g. 10 cookies per second = 600 cookies per minute = 1.67 minutes per kilocookie.
+         */
+        timePerCookie: function timePerCookie(cookiesPs) {
+            var secondsPerCookie = 1 / cookiesPs;
+            var minsPer = secondsPerCookie / 60;
+            var prefix = '', prefixes = ['kilo', 'mega', 'giga', 'tera', 'peta', 'exa', 'zetta', 'yotta'];
+            while (minsPer < 1 && prefixes.length) {
+                minsPer = minsPer * 1000;
+                prefix = prefixes.shift();
+            }
+            return minsPer.toPrecision(3) + " minutes per " + prefix + "cookie";
         }
-        rootDigit = Math.floor((n1digits - 1) / 3) * 3 + 1;
-        return rootDigit - n2digits;
     };
+})();
 
-
-    /* Display a number with its metric prefix. e.g. 12345678 = "12.3 mega"
-     *
-     * precision: defaults to 4
-     * fixed: if true, number will be formatted with Number.toFixed, 
-     * else it defaults to Number.toPrecision 
-     */
-    var metricPrefixed = function prefixed(n, precision, fixed) {
-        var scaled, scaledStr, prefixIndex = Math.floor(Math.log(Math.abs(n)) / (Math.LN10 * 3));
-        prefixIndex = Math.min(prefixIndex, _prefixes.length - 1);
-        scaled = n / (Math.pow(1000, prefixIndex));
-
-        if (precision === undefined) {
-            precision = 4;
-        }
-        scaledStr = fixed ? scaled.toFixed(precision) : scaled.toPrecision(precision);
-        return scaledStr + " " + _prefixes[prefixIndex];
-    };
-
-    /* How many minutes does it take to make a zillion cookies?
-     * Where "a zillion" is the lowest power of 1000 such that the answer is greater than 1.
-     *
-     * e.g. 10 cookies per second = 600 cookies per minute = 1.67 minutes per kilocookie.
-     */
-    var timePerCookie = function timePerCookie(cookiesPs) {
-        var secondsPerCookie = 1 / cookiesPs;
-        var minsPer = secondsPerCookie / 60;
-        var prefix = '', prefixes = ['kilo', 'mega', 'giga', 'tera', 'peta', 'exa', 'zetta', 'yotta'];
-        while (minsPer < 1 && prefixes.length) {
-            minsPer = minsPer * 1000;
-            prefix = prefixes.shift();
-        }
-        return minsPer.toPrecision(3) + " minutes per " + prefix + "cookie";
-    };
+var _Comptroller = function _Comptroller(Game) {
+    "use strict";
 
     // stuff that happens before the Angular app is loaded.
     var Foundation = {
@@ -184,9 +189,6 @@ var _Comptroller = function _Comptroller(Game) {
     };
 
     return {
-        timePerCookie: timePerCookie,
-        enoughDigits: enoughDigits,
-        metricPrefixed: metricPrefixed,
         Foundation: Foundation
     };
 };
@@ -236,18 +238,18 @@ var defineServices = function defineServices() {
     });
 
     /* Filters. */
-    module.filter("metricPrefixed", function () { return Comptroller.metricPrefixed;});
+    module.filter("metricPrefixed", function () { return CCFormatUtils.metricPrefixed;});
 };
 
 var ComptrollerController = function ComptrollerController($scope, CookieClicker) {
     "use strict";
     $scope.Game = CookieClicker;
-    $scope.timePerCookie = function () { return Comptroller.timePerCookie(CookieClicker.cookiesPs); };
+    $scope.timePerCookie = function () { return CCFormatUtils.timePerCookie(CookieClicker.cookiesPs); };
     $scope.cookiesToMinutes = function (cookies) { return cookies / CookieClicker.cookiesPs / 60; };
 
     $scope.storeObjects = function () { return CookieClicker.ObjectsById; };
     $scope.storeUpgrades = function () { return CookieClicker.UpgradesInStore; };
-    $scope.enoughDigits = Comptroller.enoughDigits;
+    $scope.enoughDigits = CCFormatUtils.enoughDigits;
 
     $scope.investmentSize = function () { return CookieClicker.cookiesPs * CCConstants.GOLDEN_MULTIPLY_CAP / CCConstants.GOLDEN_MULTIPLY_FACTOR; };
 
