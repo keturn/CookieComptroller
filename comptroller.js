@@ -192,8 +192,9 @@ var _Comptroller = function _Comptroller(Game) {
 
     /* Make the stock Cookie Clicker Game object injectable into Angular objects, and hook in to its mainloop so
      * Angular can find updated data. */
-    var cookieClickerFactory = function cookieClickerFactory ($rootScope) {
+    var CookieClickerService = function CookieClickerService ($rootScope) {
         var origDraw = Game.Draw;
+
         // monkeypatch the game's Draw function so that Angular data gets updated.
         if (Game._ccompOrigDraw) {
             console.warn("Game.Draw already hooked?");
@@ -206,39 +207,67 @@ var _Comptroller = function _Comptroller(Game) {
             };
             console.debug("Game.Draw hook installed.");
         }
-        return Game; // this is the global Cookie Clicker "Game" instance.
+
+        // I think I'm getting *closer* to a proper seperation of concerns here, but I fear that this service 
+        // definition is still in poor form.
+
+        this.Game = Game;
+        this.cookiesToMinutes = function (cookies) {
+            return cookies / Game.cookiesPs / 60;
+        };
+        this.storeObjects = function () { return Game.ObjectsById; };
+        this.storeUpgrades = function () { return Game.UpgradesInStore; };
+        this.principalSize = function () {
+            return (Game.cookiesPs * CCConstants.GOLDEN_MULTIPLY_CAP /
+                CCConstants.GOLDEN_MULTIPLY_FACTOR);
+        };
+        this.globalMultNoFrenzy = function globalMultNoFrenzy () {
+            if (Game.frenzy > 0) {
+                return Game.globalCpsMult / Game.frenzyPower;
+            } else {
+                return Game.globalCpsMult;
+            }
+        };
+
+        /* UI */
+        this.onMenu = function () { return Game.onMenu; };
+
+        return this;
     };
 
-    var ComptrollerController = function ComptrollerController($scope, CookieClicker) {
-        $scope.Game = CookieClicker;
-        $scope.timePerCookie = function () { return CCFormatUtils.timePerCookie(CookieClicker.cookiesPs); };
-        $scope.cookiesToMinutes = function (cookies) { return cookies / CookieClicker.cookiesPs / 60; };
 
-        $scope.storeObjects = function () { return CookieClicker.ObjectsById; };
-        $scope.storeUpgrades = function () { return CookieClicker.UpgradesInStore; };
+    var ComptrollerController = function ComptrollerController($scope, CookieClicker) {
+        // The organization here is still rather confused. Which things go
+        // on the model, which things go on the scope? How much direct access
+        // to the model should the view have? Should we ever allow the view
+        // to access the original Game object, or should we always have it go
+        // through our Service wrapped around it, to provide a single place
+        // to handle any API changes?
+
+        $scope.Game = CookieClicker.Game;
+        $scope.timePerCookie = function () {
+            return CCFormatUtils.timePerCookie(CookieClicker.Game.cookiesPs);
+        };
+
+        $scope.storeObjects = CookieClicker.storeObjects;
+        $scope.storeUpgrades = CookieClicker.storeUpgrades;
         $scope.enoughDigits = CCFormatUtils.enoughDigits;
 
-        $scope.investmentSize = function () { return CookieClicker.cookiesPs * CCConstants.GOLDEN_MULTIPLY_CAP / CCConstants.GOLDEN_MULTIPLY_FACTOR; };
-
-        $scope.comptrollerVisible = function () { return CookieClicker.onMenu === "comptroller"; };
-
-        var globalMultNoFrenzy = function globalMultNoFrenzy () {
-            if (CookieClicker.frenzy > 0) {
-                return CookieClicker.globalCpsMult / CookieClicker.frenzyPower;
-            } else {
-                return CookieClicker.globalCpsMult;
-            }
+        $scope.investmentSize = CookieClicker.principalSize;
+        $scope.comptrollerVisible = function () {
+            return CookieClicker.onMenu() === "comptroller";
         };
 
         $scope.store = {
             incrementalValue: function (obj) {
-                return obj.storedCps * CookieClicker.globalCpsMult / CookieClicker.cookiesPs;
+                return (obj.storedCps * CookieClicker.Game.globalCpsMult /
+                    CookieClicker.Game.cookiesPs);
             },
             upgradeValue: function (upgrade) {
                 /* Cookie flavours have data on their modifiers. Many others don't. */
                 if (upgrade.type === 'cookie' && upgrade.power) {
                     var multiplierAdd = upgrade.power / 100;
-                    return multiplierAdd / globalMultNoFrenzy();
+                    return multiplierAdd / CookieClicker.globalMultNoFrenzy();
                 } else {
                     return undefined;
                 }
@@ -246,11 +275,11 @@ var _Comptroller = function _Comptroller(Game) {
             // in minutes
             timeToRepayUpgrade: function timeToRepayUpgrade(upgrade) {
                 var multiplier = $scope.store.upgradeValue(upgrade);
-                var gainedCPS = CookieClicker.cookiesPs * multiplier;
+                var gainedCPS = CookieClicker.Game.cookiesPs * multiplier;
                 return upgrade.basePrice / gainedCPS / 60;
             },
             minutesToRepay: function (obj) {
-                return obj.price / (obj.storedCps * CookieClicker.globalCpsMult) / 60;
+                return obj.price / (obj.storedCps * CookieClicker.Game.globalCpsMult) / 60;
             }
         };
 
@@ -268,21 +297,12 @@ var _Comptroller = function _Comptroller(Game) {
         $scope.selectedUpgradeDomain = null;
         $scope.selectedUpgradeAdd = 0;
 
-        // FIXME: This should go on the CookieClicker Service
-        var globalMultNoFrenzy = function globalMultNoFrenzy () {
-            if (CookieClicker.frenzy > 0) {
-                return CookieClicker.globalCpsMult / CookieClicker.frenzyPower;
-            } else {
-                return CookieClicker.globalCpsMult;
-            }
-        };
-
         //noinspection UnnecessaryLocalVariableJS
         var calculator = {
             currentCPS: function (domain) {
                 var cps;
                 if (!domain) { // global
-                    cps = CookieClicker.cookiesPs;
+                    cps = CookieClicker.Game.cookiesPs;
                 } else {
                     cps = domain.storedTotalCps;
                 }
@@ -297,7 +317,7 @@ var _Comptroller = function _Comptroller(Game) {
                     // Actually, it turns out it's more complicated than that:
                     // flavoured cookies, bingo-research products, and heavenly chips
                     // are additive, but kitten workers do compound.
-                    mult = add / globalMultNoFrenzy();
+                    mult = add / CookieClicker.globalMultNoFrenzy();
                 } else {
                     // Doublers for objects *do* compound, although the variety of
                     // modifiers (addition to base CPS and post-multiplier bonus)
@@ -312,7 +332,7 @@ var _Comptroller = function _Comptroller(Game) {
                 return cps * multi;
             },
             incrementalValue: function incrementalValue(domain, add) {
-                return calculator.cpsGain(domain, add) / CookieClicker.cookiesPs;
+                return calculator.cpsGain(domain, add) / CookieClicker.Game.cookiesPs;
             },
             // in minutes
             timeToRepay: function (upgrade, domain, add) {
@@ -346,7 +366,7 @@ var _Comptroller = function _Comptroller(Game) {
         var module = angular.module("cookieComptroller", []);
 
         /* Services. */
-        module.factory("CookieClicker", cookieClickerFactory);
+        module.service("CookieClicker", CookieClickerService);
 
         /* Controllers. */
         module.controller("ComptrollerController", ComptrollerController);
@@ -374,8 +394,8 @@ var lowFPS = function (Game) {
     "use strict";
     var origFPS = Game.fps, newFPS = 4;
     var ratio = newFPS / origFPS;
-    // FIXME: Resetting FPS mid-game may distort various counters, including including research
-    // and pledges.
+    // FIXME: Resetting FPS mid-game may distort various counters, including
+    // research and pledges.
     Game.fps = newFPS;
 
     Game.baseResearchTime = Math.round(Game.baseResearchTime * ratio);
