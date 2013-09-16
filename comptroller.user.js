@@ -14,7 +14,6 @@
  *    Comptroller button again, or any of the other menu buttons.)
  *
  * TODO:
- *  - make userscript-compatible
  *  - inspect Cookie Clicker version for possible compatibility mismatches
  *  - report on handmade cookies during frenzy activity
  *  - report historical CPS, with expected vs realized
@@ -46,6 +45,7 @@
 // @match http://orteil.dashnet.org/cookieclicker/
 // @version 0.1
 // @namespace http://keturn.net/
+// @downloadURL https://raw.github.com/keturn/CookieComptroller/master/comptroller.user.js
 // ==/UserScript==
 
 /*global Game, angular, console */
@@ -303,7 +303,7 @@ var _Comptroller = function _Comptroller(Game) {
                 origDraw.apply(Game, arguments);
                 $rootScope.$apply();
             };
-            console.debug("Game.Draw hook installed.");
+            // console.debug("Game.Draw hook installed.");
         }
 
         // I think I'm getting *closer* to a proper seperation of concerns here, but I fear that this service 
@@ -500,7 +500,7 @@ var lowFPS = function (Game) {
     Game.goldenCookie.delay = Math.round(Game.goldenCookie.delay * ratio);
     Game.frenzy = Math.round(Game.frenzy.delay * ratio);
     Game.clickFrenzy = Math.round(Game.clickFrenzy * ratio);
-    console.info("FPS lowered.");
+    // console.info("FPS lowered.");
 };
 
 
