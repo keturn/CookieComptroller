@@ -2,7 +2,7 @@
  *
  * The Comptroller presents reports on the Cookie Clicker economy.
  *
- * Written by Kevin Turner. Not supported or endorsed by Orteli.
+ * Written by Kevin Turner. Not supported or endorsed by Orteil.
  *
  * Find source and report issues at https://github.com/keturn/CookieComptroller
  *
@@ -561,7 +561,10 @@ var extension_boot = function extension_boot () {
                 5000
             );
         }
-        execute('Comptroller = (' + _Comptroller.toString() + ')(Game);');
+        execute('/* Cookie Comptroller is an add-on, not hosted or supported ' +
+            'by Orteil. See https://github.com/keturn/CookieComptroller for ' +
+            'details. */\n' +
+            'Comptroller = (' + _Comptroller.toString() + ')(Game);');
         execute('Comptroller.Foundation.boot()');
     });
 };
