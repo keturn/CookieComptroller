@@ -237,7 +237,7 @@ var _Comptroller = function _Comptroller(Game) {
 
 
     var ComptrollerController = function ComptrollerController($scope, CookieClicker) {
-        // The organization here is still rather confused. Which things go
+        // The organization here is still quite confused. Which things go
         // on the model, which things go on the scope? How much direct access
         // to the model should the view have? Should we ever allow the view
         // to access the original Game object, or should we always have it go
@@ -248,6 +248,7 @@ var _Comptroller = function _Comptroller(Game) {
         $scope.timePerCookie = function () {
             return CCFormatUtils.timePerCookie(CookieClicker.Game.cookiesPs);
         };
+        $scope.cookiesToMinutes = CookieClicker.cookiesToMinutes;
 
         $scope.storeObjects = CookieClicker.storeObjects;
         $scope.storeUpgrades = CookieClicker.storeUpgrades;
