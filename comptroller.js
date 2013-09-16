@@ -56,6 +56,7 @@ var CCConstants = {
     GOLDEN_MULTIPLY_CAP: 60 * 20
 };
 
+/* String formatting functions. Purely functional with no game logic or advanced object types. */
 var CCFormatUtils = (function () {
     "use strict";
     var _prefixes = ['', 'kilo', 'mega', 'giga', 'tera', 'peta', 'exa', 'zetta', 'yotta'];
@@ -188,6 +189,39 @@ var _Comptroller = function _Comptroller(Game) {
         }
     };
 
+
+    /* Make the stock Cookie Clicker Game object injectable into Angular objects, and hook in to its mainloop so
+     * Angular can find updated data. */
+    var cookieClickerFactory = function cookieClickerFactory ($rootScope) {
+        var origDraw = Game.Draw;
+        // monkeypatch the game's Draw function so that Angular data gets updated.
+        if (Game._ccompOrigDraw) {
+            console.warn("Game.Draw already hooked?");
+        } else {
+            /*** MAINLOOP HOOK ***/
+            Game._ccompOrigDraw = origDraw;
+            Game.Draw = function DrawWithCookieComptroller() {
+                origDraw.apply(Game, arguments);
+                $rootScope.$apply();
+            };
+            console.debug("Game.Draw hook installed.");
+        }
+        return Game; // this is the global Cookie Clicker "Game" instance.
+    };
+
+
+    var defineServices = function defineServices() {
+        var module = angular.module("cookieComptroller", []);
+
+        module.factory("CookieClicker", cookieClickerFactory);
+
+        /* Filters. */
+        module.filter("metricPrefixed", function () { return CCFormatUtils.metricPrefixed;});
+
+        return module;
+    };
+
+
     return {
         Foundation: Foundation
     };
@@ -214,32 +248,6 @@ var lowFPS = function (Game) {
     console.info("FPS lowered.");
 };
 
-
-var defineServices = function defineServices() {
-    "use strict";
-    var module = angular.module("cookieComptroller", []);
-
-    /* Make the stock Cookie Clicker game injectable into Angular objects. */
-    module.factory("CookieClicker", function ($rootScope) {
-        var origDraw = Game.Draw;
-        // monkeypatch the game's Draw function so that Angular data gets updated.
-        if (Game._ccompOrigDraw) {
-            console.warn("Game.Draw already hooked?");
-        } else {
-            /*** MAINLOOP HOOK ***/
-            Game._ccompOrigDraw = origDraw;
-            Game.Draw = function DrawWithCookieComptroller() {
-                origDraw.apply(Game, arguments);
-                $rootScope.$apply();
-            };
-            console.debug("Game.Draw hook installed.");
-        }
-        return Game; // this is the global Cookie Clicker "Game" instance. 
-    });
-
-    /* Filters. */
-    module.filter("metricPrefixed", function () { return CCFormatUtils.metricPrefixed;});
-};
 
 var ComptrollerController = function ComptrollerController($scope, CookieClicker) {
     "use strict";
