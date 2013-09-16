@@ -209,11 +209,148 @@ var _Comptroller = function _Comptroller(Game) {
         return Game; // this is the global Cookie Clicker "Game" instance.
     };
 
+    var ComptrollerController = function ComptrollerController($scope, CookieClicker) {
+        $scope.Game = CookieClicker;
+        $scope.timePerCookie = function () { return CCFormatUtils.timePerCookie(CookieClicker.cookiesPs); };
+        $scope.cookiesToMinutes = function (cookies) { return cookies / CookieClicker.cookiesPs / 60; };
+
+        $scope.storeObjects = function () { return CookieClicker.ObjectsById; };
+        $scope.storeUpgrades = function () { return CookieClicker.UpgradesInStore; };
+        $scope.enoughDigits = CCFormatUtils.enoughDigits;
+
+        $scope.investmentSize = function () { return CookieClicker.cookiesPs * CCConstants.GOLDEN_MULTIPLY_CAP / CCConstants.GOLDEN_MULTIPLY_FACTOR; };
+
+        $scope.comptrollerVisible = function () { return CookieClicker.onMenu === "comptroller"; };
+
+        var globalMultNoFrenzy = function globalMultNoFrenzy () {
+            if (CookieClicker.frenzy > 0) {
+                return CookieClicker.globalCpsMult / CookieClicker.frenzyPower;
+            } else {
+                return CookieClicker.globalCpsMult;
+            }
+        };
+
+        $scope.store = {
+            incrementalValue: function (obj) {
+                return obj.storedCps * CookieClicker.globalCpsMult / CookieClicker.cookiesPs;
+            },
+            upgradeValue: function (upgrade) {
+                /* Cookie flavours have data on their modifiers. Many others don't. */
+                if (upgrade.type === 'cookie' && upgrade.power) {
+                    var multiplierAdd = upgrade.power / 100;
+                    return multiplierAdd / globalMultNoFrenzy();
+                } else {
+                    return undefined;
+                }
+            },
+            // in minutes
+            timeToRepayUpgrade: function timeToRepayUpgrade(upgrade) {
+                var multiplier = $scope.store.upgradeValue(upgrade);
+                var gainedCPS = CookieClicker.cookiesPs * multiplier;
+                return upgrade.basePrice / gainedCPS / 60;
+            },
+            minutesToRepay: function (obj) {
+                return obj.price / (obj.storedCps * CookieClicker.globalCpsMult) / 60;
+            }
+        };
+
+        $scope.selectedUpgrade = undefined;
+    };
+
+
+    /**
+     * Controller for the semi-manual Upgrade Calculator.
+     * @param $scope
+     * @param CookieClicker
+     * @constructor
+     */
+    var CalculatorController = function ($scope, CookieClicker) {
+        $scope.selectedUpgradeDomain = null;
+        $scope.selectedUpgradeAdd = 0;
+
+        // FIXME: This should go on the CookieClicker Service
+        var globalMultNoFrenzy = function globalMultNoFrenzy () {
+            if (CookieClicker.frenzy > 0) {
+                return CookieClicker.globalCpsMult / CookieClicker.frenzyPower;
+            } else {
+                return CookieClicker.globalCpsMult;
+            }
+        };
+
+        //noinspection UnnecessaryLocalVariableJS
+        var calculator = {
+            currentCPS: function (domain) {
+                var cps;
+                if (!domain) { // global
+                    cps = CookieClicker.cookiesPs;
+                } else {
+                    cps = domain.storedTotalCps;
+                }
+                return cps;
+            },
+            multiplier: function (domain, add) {
+                var mult;
+                if (!domain) { // global
+                    // additions to the global multiplier stack additively, they do
+                    // not compound. So adding a 2x multiplier to an existing 4x is
+                    // a +50% upgrade, not +100%.
+                    // Actually, it turns out it's more complicated than that:
+                    // flavoured cookies, bingo-research products, and heavenly chips
+                    // are additive, but kitten workers do compound.
+                    mult = add / globalMultNoFrenzy();
+                } else {
+                    // Doublers for objects *do* compound, although the variety of
+                    // modifiers (addition to base CPS and post-multiplier bonus)
+                    // means there are details not expressed in this single number.
+                    mult = add;
+                }
+                return mult;
+            },
+            cpsGain: function cpsGain(domain, add) {
+                var cps = calculator.currentCPS(domain),
+                    multi = calculator.multiplier(domain, add);
+                return cps * multi;
+            },
+            incrementalValue: function incrementalValue(domain, add) {
+                return calculator.cpsGain(domain, add) / CookieClicker.cookiesPs;
+            },
+            // in minutes
+            timeToRepay: function (upgrade, domain, add) {
+                var cpsGain = calculator.cpsGain(domain, add);
+                return (upgrade.basePrice / cpsGain / 60);
+            },
+            selectedIncValue: function () {
+                if ($scope.selectedUpgrade && $scope.selectedUpgradeAdd) {
+                    return calculator.incrementalValue($scope.selectedUpgradeDomain,
+                        $scope.selectedUpgradeAdd / 100);
+                } else {
+                    return undefined;
+                }
+            },
+            selectedTTR: function () {
+                if ($scope.selectedUpgrade && $scope.selectedUpgradeAdd) {
+                    return calculator.timeToRepay($scope.selectedUpgrade,
+                        $scope.selectedUpgradeDomain,
+                        $scope.selectedUpgradeAdd / 100);
+                } else {
+                    return undefined;
+                }
+            }
+        };
+
+        $scope.calculator = calculator;
+    };
+
 
     var defineServices = function defineServices() {
         var module = angular.module("cookieComptroller", []);
 
+        /* Services. */
         module.factory("CookieClicker", cookieClickerFactory);
+
+        /* Controllers. */
+        module.controller("ComptrollerController", ComptrollerController);
+        module.controller("CalculatorController", CalculatorController);
 
         /* Filters. */
         module.filter("metricPrefixed", function () { return CCFormatUtils.metricPrefixed;});
@@ -246,134 +383,6 @@ var lowFPS = function (Game) {
     Game.frenzy = Math.round(Game.frenzy.delay * ratio);
     Game.clickFrenzy = Math.round(Game.clickFrenzy * ratio);
     console.info("FPS lowered.");
-};
-
-
-var ComptrollerController = function ComptrollerController($scope, CookieClicker) {
-    "use strict";
-    $scope.Game = CookieClicker;
-    $scope.timePerCookie = function () { return CCFormatUtils.timePerCookie(CookieClicker.cookiesPs); };
-    $scope.cookiesToMinutes = function (cookies) { return cookies / CookieClicker.cookiesPs / 60; };
-
-    $scope.storeObjects = function () { return CookieClicker.ObjectsById; };
-    $scope.storeUpgrades = function () { return CookieClicker.UpgradesInStore; };
-    $scope.enoughDigits = CCFormatUtils.enoughDigits;
-
-    $scope.investmentSize = function () { return CookieClicker.cookiesPs * CCConstants.GOLDEN_MULTIPLY_CAP / CCConstants.GOLDEN_MULTIPLY_FACTOR; };
-
-    $scope.comptrollerVisible = function () { return CookieClicker.onMenu === "comptroller"; };
-
-    var globalMultNoFrenzy = function globalMultNoFrenzy () {
-        if (CookieClicker.frenzy > 0) {
-            return CookieClicker.globalCpsMult / CookieClicker.frenzyPower;
-        } else {
-            return CookieClicker.globalCpsMult;
-        }
-    };
-
-    $scope.store = {
-        incrementalValue: function (obj) {
-            return obj.storedCps * CookieClicker.globalCpsMult / CookieClicker.cookiesPs;
-        },
-        upgradeValue: function (upgrade) {
-            /* Cookie flavours have data on their modifiers. Many others don't. */
-            if (upgrade.type === 'cookie' && upgrade.power) {
-                var multiplierAdd = upgrade.power / 100;
-                return multiplierAdd / globalMultNoFrenzy();
-            } else {
-                return undefined;
-            }
-        },
-        // in minutes
-        timeToRepayUpgrade: function timeToRepayUpgrade(upgrade) {
-            var multiplier = $scope.store.upgradeValue(upgrade); 
-            var gainedCPS = CookieClicker.cookiesPs * multiplier;
-            return upgrade.basePrice / gainedCPS / 60;
-        },
-        minutesToRepay: function (obj) {
-            return obj.price / (obj.storedCps * CookieClicker.globalCpsMult) / 60;
-        }
-    };
-
-    $scope.selectedUpgrade = undefined;
-};
-
-var CalculatorController = function ($scope, CookieClicker) {
-    "use strict";
-    $scope.selectedUpgradeDomain = null;
-    $scope.selectedUpgradeAdd = 0;
-
-    // FIXME: This should go on the CookieClicker Service
-    var globalMultNoFrenzy = function globalMultNoFrenzy () {
-        if (CookieClicker.frenzy > 0) {
-            return CookieClicker.globalCpsMult / CookieClicker.frenzyPower;
-        } else {
-            return CookieClicker.globalCpsMult;
-        }
-    };
-
-    //noinspection UnnecessaryLocalVariableJS
-    var calculator = {
-        currentCPS: function (domain) {
-            var cps;
-            if (!domain) { // global
-                cps = CookieClicker.cookiesPs;
-            } else {
-                cps = domain.storedTotalCps;
-            }
-            return cps;
-        },
-        multiplier: function (domain, add) {
-            var mult;
-            if (!domain) { // global
-                // additions to the global multiplier stack additively, they do 
-                // not compound. So adding a 2x multiplier to an existing 4x is
-                // a +50% upgrade, not +100%.
-                // Actually, it turns out it's more complicated than that: 
-                // flavoured cookies, bingo-research products, and heavenly chips
-                // are additive, but kitten workers do compound.
-                mult = add / globalMultNoFrenzy();
-            } else {
-                // Doublers for objects *do* compound, although the variety of 
-                // modifiers (addition to base CPS and post-multiplier bonus)
-                // means there are details not expressed in this single number.
-                mult = add;
-            }
-            return mult;
-        },        
-        cpsGain: function cpsGain(domain, add) {
-            var cps = calculator.currentCPS(domain),
-                multi = calculator.multiplier(domain, add);
-            return cps * multi;
-        },
-        incrementalValue: function incrementalValue(domain, add) {
-            return calculator.cpsGain(domain, add) / CookieClicker.cookiesPs;
-        },
-        // in minutes
-        timeToRepay: function (upgrade, domain, add) {
-            var cpsGain = calculator.cpsGain(domain, add);
-            return (upgrade.basePrice / cpsGain / 60);
-        },
-        selectedIncValue: function () {
-            if ($scope.selectedUpgrade && $scope.selectedUpgradeAdd) {
-                return calculator.incrementalValue($scope.selectedUpgradeDomain, 
-                    $scope.selectedUpgradeAdd / 100);
-            } else {
-                return undefined;
-            }
-        },
-        selectedTTR: function () {
-            if ($scope.selectedUpgrade && $scope.selectedUpgradeAdd) {
-                return calculator.timeToRepay($scope.selectedUpgrade, 
-                    $scope.selectedUpgradeDomain, 
-                    $scope.selectedUpgradeAdd / 100);
-            } else {
-                return undefined;
-            }
-        }
-    };
-    
-    $scope.calculator = calculator;
 };
 
 
