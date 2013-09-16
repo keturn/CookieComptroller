@@ -4,6 +4,8 @@
  *
  * Written by Kevin Turner. Not supported or endorsed by Orteli.
  *
+ * Find source and report issues at https://github.com/keturn/CookieComptroller
+ *
  * Usage notes:
  *  - Access the comptroller from the button to the right of the news ticker.
  *
