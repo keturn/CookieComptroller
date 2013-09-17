@@ -21,7 +21,6 @@
  *  - rework display of principal investment (for Lucky! multiplier cookies)
  *  - show theoretical return on investment from golden cookies
  *  - document and streamline upgrade cost/benefit calculator
- *  - autocompute kitten value
  *  - add to shop: time (or date) of "total time to break even"
  *  - replace obsolete unit of time "minutes" with more contemporary "loops of Ylvis' The Fox"
  *  - report on how much income comes from each source
@@ -455,7 +454,7 @@ var _Comptroller = function _Comptroller(Game) {
                     return multiplierAdd / CookieClicker.globalUpgradesMult();
                 } else if (CCConstants.milkUpgrades[upgrade.name]) {
                     return (CCConstants.milkUpgrades[upgrade.name] *
-                        CookieClicker.milkProgress);
+                        CookieClicker.Game.milkProgress);
                 }
                 return undefined;
             },
