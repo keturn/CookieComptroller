@@ -208,7 +208,7 @@ var _Comptroller = function _Comptroller(Game) {
             "<th>Incremental<br />Value %</th><th>Time to Repay<br/>(min)</th></tr>\n" +
             /* objects */
             "<tbody>\n" +
-            "    <tr ng-repeat='obj in storeObjects()'>" +
+            "    <tr ng-repeat='obj in storeObjects()' ng-click='setSelected(obj)'>" +
             "    <td style='text-align: right'>{{ obj.price | number:0 }}</td>" +
             "    <td style='text-align: left' ng-bind-html-unsafe='obj.name'></td>" +
             "    <td style='text-align: right'>{{ cookiesToMinutes(obj.price) | number:1 }}</td>" +
@@ -216,7 +216,7 @@ var _Comptroller = function _Comptroller(Game) {
             "    <td style='text-align: right'>{{ store.minutesToRepay(obj) | number:1 }}</td>" +
             "</tr>\n" +
             /* upgrades */
-            "<tr ng-repeat='obj in storeUpgrades()' ng-click='$parent.selectedUpgrade = obj'>" +
+            "<tr ng-repeat='obj in storeUpgrades()' ng-click='setSelected(obj)'>" +
             "    <td style='text-align: right'>{{ obj.basePrice | number:0 }}</td>" +
             "    <td style='text-align: left' ng-bind-html-unsafe='obj.name'></td>" +
             "    <td style='text-align: right'>{{ cookiesToMinutes(obj.basePrice) | number:1 }}</td>" +
@@ -224,14 +224,16 @@ var _Comptroller = function _Comptroller(Game) {
             "    <td style='text-align: right'>{{ store.timeToRepayUpgrade(obj) | number:1 }}</td>" +
             "</tr>\n" +
             "</tbody>\n" +
-            /* calculator */
-            "<tbody ng-controller='CalculatorController'><tr><th colspan='5'>Upgrade Calculator</th></tr>\n" +
+            // having a tough time with ng-switch around tbody children, so
+            // we abuse ng-repeat here to get a kludgy version of ng-if.
+            "<tbody ng-repeat='kludge in showCalculator(\"upgrade\")' ng-controller='UpgradeCalculatorController''>\n" +
+            "<tr><th colspan='5'>Upgrade Calculator</th></tr>\n" +
             "<tr>\n" +
-            "    <td style='text-align: right'>{{ selectedUpgrade.basePrice | number:0 }}</td>" +
-            "    <td>{{ selectedUpgrade.name }}</td>" +
-            "    <td style='text-align: right'>{{ cookiesToMinutes(selectedUpgrade.basePrice) | number:1 }}</td>" +
+            "    <td style='text-align: right'>{{ selected.basePrice | number:0 }}</td>" +
+            "    <td>{{ selected.name }}</td>" +
+            "    <td style='text-align: right'>{{ cookiesToMinutes(selected.basePrice) | number:1 }}</td>" +
             "    <td colspan='2' rowspan='2'></td></tr>\n" +
-            "<tr><td colspan='3' class='description' ng-bind-html-unsafe='selectedUpgrade.desc'></td></tr>\n" +
+            "<tr><td colspan='3' class='description' ng-bind-html-unsafe='selected.desc'></td></tr>\n" +
             "<tr><td colspan='3'>Modifies: " +
             "    <select ng-model='selectedUpgradeDomain' ng-options='obj.name for obj in storeObjects()'>\n" +
             "        <option value=''>*global*</option>\n" +
@@ -239,8 +241,23 @@ var _Comptroller = function _Comptroller(Game) {
             "Multiplier Add: +<input type='number' ng-model='selectedUpgradeAdd' class='pctInput' required />%</td>" +
             "<td style='text-align: right'>{{ calculator.selectedIncValue() * 100 | number }}%</td>" +
             "<td style='text-align: right'>{{ calculator.selectedTTR() | number:1 }}</td>" +
-            "</tr>\n</tbody>" +
-            "</table>\n" +
+            "</tr>\n" +
+            "</tbody>\n" +
+            "<tbody ng-repeat='kludge in showCalculator(\"building\")' ng-controller='BuildingCalculatorController''>\n" +
+            "<tr><th colspan='5'>Building Calculator</th></tr>\n" +
+            "<tr>\n" +
+            "    <td style='text-align: right'>{{ totalCost() | number:0 }}</td>" +
+            "    <td>{{ sayHowMany() }}</td>" +
+            "    <td style='text-align: right'>{{ cookiesToMinutes(totalCost()) | number:1 }}</td>" +
+            "    <td style='text-align: right'>{{ totalIncrementalValue() * 100 | number }}%</td>" +
+            "    <td style='text-align: right'>{{ minutesToRepay() | number:1 }}</td></tr>\n" +
+            "<tr><td colspan='3'>" +
+            "Target amount: " +
+            "<input type='number' min='{{selected.amount+1}}' ng-model='targetAmount' required>" +
+            "<br />Currently Owned: {{selected.amount}}</td><td colspan='2' style='text-align: right'><small>(not counting achievements)</small></td></tr>" +
+            "</tbody>\n" +
+            "<tr><th colspan='5' ng-hide='calculatorMode'>click a row to show the calculator</th></tr>\n" +
+            "</ng-switch>\n</table>\n" +
             "</div>\n")
     };
 
@@ -408,6 +425,24 @@ var _Comptroller = function _Comptroller(Game) {
             return CookieClicker.onMenu() === "comptroller";
         };
 
+        $scope.selected = undefined;
+        $scope.calculatorMode = null;
+
+        $scope.setSelected = function setSelected (obj) {
+            $scope.selected = obj;
+            if (obj instanceof CookieClicker.Game.Object) {
+                $scope.calculatorMode = "building";
+            } else if (obj instanceof CookieClicker.Game.Upgrade) {
+                $scope.calculatorMode = "upgrade";
+            } else {
+                $scope.calculatorMode = null;
+            }
+        };
+
+        $scope.showCalculator = function showCalculator (kind) {
+            return (kind === $scope.calculatorMode) ? ['yes'] : [];
+        };
+
         $scope.store = {
             incrementalValue: function (obj) {
                 return (obj.storedCps * CookieClicker.Game.globalCpsMult /
@@ -434,8 +469,6 @@ var _Comptroller = function _Comptroller(Game) {
                 return obj.price / (obj.storedCps * CookieClicker.Game.globalCpsMult) / 60;
             }
         };
-
-        $scope.selectedUpgrade = undefined;
     };
 
 
@@ -445,7 +478,7 @@ var _Comptroller = function _Comptroller(Game) {
      * @param CookieClicker
      * @constructor
      */
-    var CalculatorController = function ($scope, CookieClicker) {
+    var UpgradeCalculatorController = function ($scope, CookieClicker) {
         $scope.selectedUpgradeDomain = null;
         $scope.selectedUpgradeAdd = 0;
 
@@ -492,7 +525,7 @@ var _Comptroller = function _Comptroller(Game) {
                 return (upgrade.basePrice / cpsGain / 60);
             },
             selectedIncValue: function () {
-                if ($scope.selectedUpgrade && $scope.selectedUpgradeAdd) {
+                if ($scope.selected && $scope.selectedUpgradeAdd) {
                     return calculator.incrementalValue($scope.selectedUpgradeDomain,
                         $scope.selectedUpgradeAdd / 100);
                 } else {
@@ -500,8 +533,8 @@ var _Comptroller = function _Comptroller(Game) {
                 }
             },
             selectedTTR: function () {
-                if ($scope.selectedUpgrade && $scope.selectedUpgradeAdd) {
-                    return calculator.timeToRepay($scope.selectedUpgrade,
+                if ($scope.selected && $scope.selectedUpgradeAdd) {
+                    return calculator.timeToRepay($scope.selected,
                         $scope.selectedUpgradeDomain,
                         $scope.selectedUpgradeAdd / 100);
                 } else {
@@ -513,6 +546,36 @@ var _Comptroller = function _Comptroller(Game) {
         $scope.calculator = calculator;
     };
 
+    var BuildingCalculatorController = function ($scope, CookieClicker) {
+        $scope.targetAmount = 100;
+        $scope.howMany = function howMany() {
+            return Math.max(0, $scope.targetAmount - $scope.selected.amount);
+        };
+        $scope.sayHowMany = function sayHowMany() {
+            return ($scope.howMany().toString() + ' ' +
+                ($scope.howMany() === 1 ? $scope.selected.single :
+                $scope.selected.plural));
+        };
+        $scope.totalCost = function totalCost() {
+            var total = 0,
+                basePrice = $scope.selected.basePrice,
+                amount = $scope.selected.amount,
+                target = $scope.targetAmount;
+            while (amount < target) {
+                total += basePrice * Math.pow(Game.priceIncrease, amount);
+                amount += 1;
+            }
+            return total;
+        };
+        $scope.totalIncrementalValue = function () {
+            return ($scope.store.incrementalValue($scope.selected) *
+                $scope.howMany());
+        };
+        $scope.minutesToRepay = function () {
+            return ($scope.totalCost() /
+                ($scope.selected.storedCps * CookieClicker.Game.globalCpsMult) / 60);
+        };
+    };
 
     var defineServices = function defineServices() {
         var module = angular.module("cookieComptroller", []);
@@ -522,7 +585,8 @@ var _Comptroller = function _Comptroller(Game) {
 
         /* Controllers. */
         module.controller("ComptrollerController", ComptrollerController);
-        module.controller("CalculatorController", CalculatorController);
+        module.controller("UpgradeCalculatorController", UpgradeCalculatorController);
+        module.controller("BuildingCalculatorController", BuildingCalculatorController);
 
         /* Filters. */
         module.filter("metricPrefixed", function () { return FormatUtils.metricPrefixed;});
