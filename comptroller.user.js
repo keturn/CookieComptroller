@@ -81,7 +81,7 @@ var _Comptroller = function _Comptroller(Game) {
     };
 
     /* String formatting functions. Purely functional with no game logic or advanced object types. */
-    var CCFormatUtils = (function () {
+    var FormatUtils = (function () {
         var _prefixes = ['', 'kilo', 'mega', 'giga', 'tera', 'peta', 'exa', 'zetta', 'yotta'];
 
         return {
@@ -395,13 +395,13 @@ var _Comptroller = function _Comptroller(Game) {
 
         $scope.Game = CookieClicker.Game;
         $scope.timePerCookie = function () {
-            return CCFormatUtils.timePerCookie(CookieClicker.Game.cookiesPs);
+            return FormatUtils.timePerCookie(CookieClicker.Game.cookiesPs);
         };
         $scope.cookiesToMinutes = CookieClicker.cookiesToMinutes;
 
         $scope.storeObjects = CookieClicker.storeObjects;
         $scope.storeUpgrades = CookieClicker.storeUpgrades;
-        $scope.enoughDigits = CCFormatUtils.enoughDigits;
+        $scope.enoughDigits = FormatUtils.enoughDigits;
 
         $scope.principalSize = CookieClicker.principalSize;
         $scope.comptrollerVisible = function () {
@@ -525,14 +525,15 @@ var _Comptroller = function _Comptroller(Game) {
         module.controller("CalculatorController", CalculatorController);
 
         /* Filters. */
-        module.filter("metricPrefixed", function () { return CCFormatUtils.metricPrefixed;});
+        module.filter("metricPrefixed", function () { return FormatUtils.metricPrefixed;});
 
         return module;
     };
 
 
     return {
-        Foundation: Foundation
+        Foundation: Foundation,
+        FormatUtils: FormatUtils
     };
 };
 
