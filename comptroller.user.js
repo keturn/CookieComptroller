@@ -68,6 +68,7 @@ var _Comptroller = function _Comptroller(Game) {
         // From Game.goldenCookie.click
         GOLDEN_MULTIPLY_FACTOR: 0.1,
         GOLDEN_MULTIPLY_CAP: 60 * 20,
+        GOLDEN_FRENZY_FACTOR: 7,
         milkUpgrades: {
             'Kitten helpers': 0.05,
             'Kitten workers': 0.1,
@@ -196,7 +197,7 @@ var _Comptroller = function _Comptroller(Game) {
             "{{ Game.computedMouseCps | metricPrefixed }}cookies per click for {{ (Game.clickFrenzy / Game.fps).toFixed(1) }} seconds.</p>\n" +
             /* total cookies and rates */
             "<p>{{ Game.cookies | metricPrefixed:enoughDigits(Game.cookies, Game.cookiesPs):true }}cookies " +
-            "(investment {{ (Game.cookies > investmentSize()) && '+' || '' }}{{ Game.cookies - investmentSize() | metricPrefixed }}cookies) at<br />\n" +
+            "(principal {{ (Game.cookies > principalSize()) && '+' || '' }}{{ Game.cookies - principalSize() | metricPrefixed }}cookies) at<br />\n" +
             "{{ Game.cookiesPs | metricPrefixed }}cookies per second, {{ Game.cookiesPs * 60 | metricPrefixed }}cookies per minute, or <br />\n" +
             "{{ timePerCookie() }}.</p>\n" +
             /* store */
@@ -331,8 +332,21 @@ var _Comptroller = function _Comptroller(Game) {
         this.storeObjects = function () { return Game.ObjectsById; };
         this.storeUpgrades = function () { return Game.UpgradesInStore; };
         this.principalSize = function () {
-            return (Game.cookiesPs * CCConstants.GOLDEN_MULTIPLY_CAP /
+            var cps = Game.cookiesPs, principal;
+
+            if (Game.frenzy > 0) {
+                cps = cps / Game.frenzyPower;
+            }
+
+            principal = (cps * CCConstants.GOLDEN_MULTIPLY_CAP /
                 CCConstants.GOLDEN_MULTIPLY_FACTOR);
+            // With "Get Lucky" you have significant chance to overlap your
+            // frenzy CPS with a Lucky multiplier cookie, so you want the
+            // principal to be high enough to take advantage of that.
+            if (Game.Has('Get lucky')) {
+                principal *= CCConstants.GOLDEN_FRENZY_FACTOR;
+            }
+            return principal;
         };
         this.globalMultNoFrenzy = function globalMultNoFrenzy () {
             if (Game.frenzy > 0) {
@@ -389,7 +403,7 @@ var _Comptroller = function _Comptroller(Game) {
         $scope.storeUpgrades = CookieClicker.storeUpgrades;
         $scope.enoughDigits = CCFormatUtils.enoughDigits;
 
-        $scope.investmentSize = CookieClicker.principalSize;
+        $scope.principalSize = CookieClicker.principalSize;
         $scope.comptrollerVisible = function () {
             return CookieClicker.onMenu() === "comptroller";
         };
