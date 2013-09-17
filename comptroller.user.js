@@ -28,6 +28,7 @@
  *  - report on total spent on each source
  *  - show how many Heavenly Chips this run is worth, time to next chip
  *  - offer suggestions of when to end it all for the prestige gain
+ *  - calculate total cost of buying up to a specified number of buildings
  *
  * Anti-Goals:
  *  - New game mechanics or items.
@@ -340,7 +341,7 @@ var _Comptroller = function _Comptroller(Game) {
                 return Game.globalCpsMult;
             }
         };
-        this.globalUpgradesMult = function globalBaseMult () {
+        this.globalUpgradesMult = function globalUpgradesMult () {
             // This is reversing some things from Game.CalculateGame.
             //   globalCpsMult is the product of four things:
             //   a) the product of all kitten-milk related upgrades
@@ -403,9 +404,11 @@ var _Comptroller = function _Comptroller(Game) {
                 if (upgrade.type === 'cookie' && upgrade.power) {
                     var multiplierAdd = upgrade.power / 100;
                     return multiplierAdd / CookieClicker.globalUpgradesMult();
-                } else {
-                    return undefined;
+                } else if (CCConstants.milkUpgrades[upgrade.name]) {
+                    return (CCConstants.milkUpgrades[upgrade.name] *
+                        CookieClicker.milkProgress);
                 }
+                return undefined;
             },
             // in minutes
             timeToRepayUpgrade: function timeToRepayUpgrade(upgrade) {
