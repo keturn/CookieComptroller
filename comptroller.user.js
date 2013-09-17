@@ -49,7 +49,7 @@
 // @name Cookie Comptroller
 // @description Reports on your Cookie Clicker accounting.
 // @match http://orteil.dashnet.org/cookieclicker/
-// @version 0.1.20130917
+// @version 0.1.20130917.1
 // @namespace http://keturn.net/
 // @downloadURL https://raw.github.com/keturn/CookieComptroller/master/comptroller.user.js
 // ==/UserScript==
