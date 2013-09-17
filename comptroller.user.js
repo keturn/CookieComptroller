@@ -10,8 +10,7 @@
  *  - Access the comptroller from the button to the right of the news ticker.
  *
  * KNOWN BUGS:
- *  - Upgrade valuations are wrong, under-valuing upgrades when you have kitten workers and milk.
- *  - Plenty of division-by-zero when you have zero CPS. 
+ *  - Plenty of division-by-zero when you have zero CPS.
  *  - The X in the upper-right does not close the Comptroller. (Click on the 
  *    Comptroller button again, or any of the other menu buttons.)
  *
@@ -22,7 +21,7 @@
  *  - rework display of principal investment (for Lucky! multiplier cookies)
  *  - show theoretical return on investment from golden cookies
  *  - document and streamline upgrade cost/benefit calculator
- *  - calculator: add option to express upgrade as either additive or compounding
+ *  - autocompute kitten value
  *  - add to shop: time (or date) of "total time to break even"
  *  - replace obsolete unit of time "minutes" with more contemporary "loops of Ylvis' The Fox"
  *  - report on how much income comes from each source
@@ -32,20 +31,24 @@
  *
  * Anti-Goals:
  *  - New game mechanics or items.
+ *  - Auto-clicking.
  *  - Duplication of item tables. As cool as it would be to calculate the effects of all the
  *    upgrades, I don't want to have item tables or multipliers that get out-of-sync with the game.
  *    If you want an add-on that's really smart about upgrades, seek out Cookie Monster. It's great!
  *
  * Compatibility notes:
- *  - You *can* use this at the same time as Cookie Monster. It mostly works just fine. There is one
- *    very significant issue though: it makes Golden Cookies spawn *under* the Comptroller UI
- *    if you have it open at the time. You have to close it (or switch to another menu) to click on the cookie.
+ *  - As of Cookie Monster 1.036.03, you can no longer load Cookie Monster after
+ *    Cookie Comptroller. Loading Cookie Monster _before_ Cookie Comptroller
+ *    probably still works. There is one very significant issue though: it makes
+ *    Golden Cookies spawn *under* the Comptroller UI if you have it open at the
+ *    time. You have to close it (or switch to another menu) to click on the
+ *    cookie.
  */
 // ==UserScript==
 // @name Cookie Comptroller
 // @description Reports on your Cookie Clicker accounting.
 // @match http://orteil.dashnet.org/cookieclicker/
-// @version 0.1
+// @version 0.1.20130917
 // @namespace http://keturn.net/
 // @downloadURL https://raw.github.com/keturn/CookieComptroller/master/comptroller.user.js
 // ==/UserScript==
@@ -63,7 +66,16 @@ var _Comptroller = function _Comptroller(Game) {
     var CCConstants = {
         // From Game.goldenCookie.click
         GOLDEN_MULTIPLY_FACTOR: 0.1,
-        GOLDEN_MULTIPLY_CAP: 60 * 20
+        GOLDEN_MULTIPLY_CAP: 60 * 20,
+        milkUpgrades: {
+            'Kitten helpers': 0.05,
+            'Kitten workers': 0.1,
+            'Kitten engineers': 0.2,
+            'Kitten overseers': 0.3
+        },
+        malus: {
+            'Elder Covenant': 0.95
+        }
     };
 
     /* String formatting functions. Purely functional with no game logic or advanced object types. */
@@ -293,7 +305,7 @@ var _Comptroller = function _Comptroller(Game) {
     /* Make the stock Cookie Clicker Game object injectable into Angular objects, and hook in to its mainloop so
      * Angular can find updated data. */
     var CookieClickerService = function CookieClickerService ($rootScope) {
-        var origDraw = Game.Draw;
+        var thisService = this, origDraw = Game.Draw;
 
         // monkeypatch the game's Draw function so that Angular data gets updated.
         if (Game._ccompOrigDraw) {
@@ -327,6 +339,28 @@ var _Comptroller = function _Comptroller(Game) {
             } else {
                 return Game.globalCpsMult;
             }
+        };
+        this.globalUpgradesMult = function globalBaseMult () {
+            // This is reversing some things from Game.CalculateGame.
+            //   globalCpsMult is the product of four things:
+            //   a) the product of all kitten-milk related upgrades
+            //   b) the Elder Covenant
+            //   c) frenzy
+            //   d) the sum (not product) of all other upgrades and
+            //      heavenly chips
+            // Last verified for Cookie Clicker version 1.036.
+            var mult = 1;
+            angular.forEach(CCConstants.milkUpgrades, function (factor, name) {
+                if (Game.Has(name)) {
+                    mult *= (1 + Game.milkProgress * factor);
+                }
+            });
+            angular.forEach(CCConstants.malus, function (factor, name) {
+                if (Game.Has(name)) {
+                    mult *= factor;
+                }
+            });
+            return thisService.globalMultNoFrenzy() / mult;
         };
 
         /* UI */
@@ -368,7 +402,7 @@ var _Comptroller = function _Comptroller(Game) {
                 /* Cookie flavours have data on their modifiers. Many others don't. */
                 if (upgrade.type === 'cookie' && upgrade.power) {
                     var multiplierAdd = upgrade.power / 100;
-                    return multiplierAdd / CookieClicker.globalMultNoFrenzy();
+                    return multiplierAdd / CookieClicker.globalUpgradesMult();
                 } else {
                     return undefined;
                 }
@@ -418,7 +452,7 @@ var _Comptroller = function _Comptroller(Game) {
                     // Actually, it turns out it's more complicated than that:
                     // flavoured cookies, bingo-research products, and heavenly chips
                     // are additive, but kitten workers do compound.
-                    mult = add / CookieClicker.globalMultNoFrenzy();
+                    mult = add / CookieClicker.globalUpgradesMult();
                 } else {
                     // Doublers for objects *do* compound, although the variety of
                     // modifiers (addition to base CPS and post-multiplier bonus)
@@ -564,7 +598,8 @@ var extension_boot = function extension_boot () {
         execute('/* Cookie Comptroller is an add-on, not hosted or supported ' +
             'by Orteil. See https://github.com/keturn/CookieComptroller for ' +
             'details. */\n' +
-            'Comptroller = (' + _Comptroller.toString() + ')(Game);');
+            'Comptroller = (' + _Comptroller.toString() + ')(Game);\n' +
+            '//@ sourceURL=comptroller-extension.js\n');
         execute('Comptroller.Foundation.boot()');
     });
 };
