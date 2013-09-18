@@ -265,6 +265,7 @@ var _Comptroller = function _Comptroller(Game) {
     // stuff that happens before the Angular app is loaded.
     var Foundation = {
         COMPTROLLER_BUTTON_ID: "comptrollerButton",
+        rootElement: null,
         addComptrollerButton: function () {
             var button, menubar, beforeThis;
             button = document.createElement("div");
@@ -315,7 +316,7 @@ var _Comptroller = function _Comptroller(Game) {
         boot: function boot() {
             Foundation.loadCSS();
             defineServices();
-            Foundation.addComptroller();
+            Foundation.rootElement = Foundation.addComptroller();
             Foundation.addComptrollerButton();
         }
     };
@@ -562,7 +563,8 @@ var _Comptroller = function _Comptroller(Game) {
                 amount = $scope.selected.amount,
                 target = $scope.targetAmount;
             while (amount < target) {
-                total += basePrice * Math.pow(Game.priceIncrease, amount);
+                total += basePrice * Math.pow(CookieClicker.Game.priceIncrease,
+                    amount);
                 amount += 1;
             }
             return total;
@@ -654,54 +656,60 @@ function execute(functionOrCode) {
     return e;
 }
 
-
-var waitForGameReady = function waitForGameReady(callback) {
+var bootLoader = function bootLoader() {
     "use strict";
-    if (Game.ready) {
-        callback();
-    } else {
-        setTimeout(waitForGameReady, 50, callback);
-    }
-};
-
-
-var boot = function () {
-    "use strict";
-    waitForGameReady(function () {
-        if (window.location.hash.match(/lowFPS/)) {
-            lowFPS(window.Game);
+    var bl = {
+        waitForGameReady: function waitForGameReady(callback) {
+            var testReady;
+            if (window.Game && window.Game.ready) {
+                callback(window.Game);
+                return null;
+            } else {
+                testReady = function testReady() {
+                    if (window.Game && window.Game.ready) {
+                        clearInterval(testReady._intervalID);
+                        callback(window.Game);
+                    }
+                };
+                testReady._intervalID = setInterval(testReady, 50);
+                return testReady._intervalID;
+            }
+        },
+        onReady: function onReady(Game) {
+            if (window.location.hash.match(/lowFPS/)) {
+                lowFPS(Game);
+            }
+            window.Comptroller = _Comptroller(Game);
+            return window.Comptroller.Foundation.boot();
+        },
+        boot: function boot() {
+            bl.waitForGameReady(bl.onReady);
         }
-        loadAngular(function () {
-            window.Comptroller = _Comptroller(window.Game);
-            window.Comptroller.Foundation.boot();
-        });
-    });
+    };
+    return bl;
 };
 
 
 var extension_boot = function extension_boot () {
     "use strict";
+    var header = '/* Cookie Comptroller is an add-on, not hosted or supported ' +
+        'by Orteil. See https://github.com/keturn/CookieComptroller for ' +
+        'details. */\n';
     loadAngular(function () {
-        // make it so appending #lowFPS to the game URL has us in low-FPS mode.
-        if (window.location.hash.match(/lowFPS/)) {
-            // kludgey, but this ran before Game was set up before.
-            setTimeout(
-                function () { execute('(' + lowFPS + ')(Game);'); },
-                5000
-            );
-        }
-        execute('/* Cookie Comptroller is an add-on, not hosted or supported ' +
-            'by Orteil. See https://github.com/keturn/CookieComptroller for ' +
-            'details. */\n' +
-            'Comptroller = (' + _Comptroller.toString() + ')(Game);\n' +
+        execute(header +
+            'lowFPS = (' + lowFPS.toString() + ');\n' +
+            '_Comptroller = (' + _Comptroller.toString() + ');\n' +
+            '(' + bootLoader.toString() + ')().boot();\n' +
+            // this doesn't point to a real thing, but makes it so that this
+            // inserted script is debuggable in chrome's inspector.
             '//@ sourceURL=comptroller-extension.js\n');
-        execute('Comptroller.Foundation.boot()');
     });
 };
 
 
 var isIsolatedExtension = function isIsolatedExtension() {
     "use strict";
+    //noinspection JSUnresolvedVariable
     return window.chrome && window.chrome.extension;
 };
 
@@ -718,6 +726,6 @@ if (isCookieClickerDocument()) {
     if (isIsolatedExtension()) {
         extension_boot();
     } else {
-        boot();
+        loadAngular(bootLoader().boot);
     }
 }
