@@ -48,6 +48,7 @@
 // @name Cookie Comptroller
 // @description Reports on your Cookie Clicker accounting.
 // @match http://orteil.dashnet.org/cookieclicker/
+// @match http://orteil.dashnet.org/cookieclicker/#*
 // @version 0.1.20130917.2
 // @namespace http://keturn.net/
 // @downloadURL https://raw.github.com/keturn/CookieComptroller/master/comptroller.user.js
@@ -654,15 +655,28 @@ function execute(functionOrCode) {
 }
 
 
+var waitForGameReady = function waitForGameReady(callback) {
+    "use strict";
+    if (Game.ready) {
+        callback();
+    } else {
+        setTimeout(waitForGameReady, 50, callback);
+    }
+};
+
+
 var boot = function () {
     "use strict";
-    lowFPS(Game);
-    loadAngular(function () {
-        window.Comptroller = _Comptroller(Game);
-        window.Comptroller.Foundation.boot();
+    waitForGameReady(function () {
+        if (window.location.hash.match(/lowFPS/)) {
+            lowFPS(window.Game);
+        }
+        loadAngular(function () {
+            window.Comptroller = _Comptroller(window.Game);
+            window.Comptroller.Foundation.boot();
+        });
     });
 };
-// boot();
 
 
 var extension_boot = function extension_boot () {
@@ -684,4 +698,26 @@ var extension_boot = function extension_boot () {
         execute('Comptroller.Foundation.boot()');
     });
 };
-extension_boot();
+
+
+var isIsolatedExtension = function isIsolatedExtension() {
+    "use strict";
+    return window.chrome && window.chrome.extension;
+};
+
+
+// greasemonkey script will get invoked on the main Cookie Clicker
+// document, but also on other sub-documents (e.g. ads) loaded within it.
+var isCookieClickerDocument = function isCookieClickerDocument() {
+    "use strict";
+    return window.document.title.match(/Cookie Clicker/);
+};
+
+
+if (isCookieClickerDocument()) {
+    if (isIsolatedExtension()) {
+        extension_boot();
+    } else {
+        boot();
+    }
+}
