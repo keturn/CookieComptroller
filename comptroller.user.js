@@ -15,19 +15,27 @@
  *    Comptroller button again, or any of the other menu buttons.)
  *
  * TODO:
- *  - inspect Cookie Clicker version for possible compatibility mismatches
- *  - report on handmade cookies during frenzy activity
- *  - report historical CPS, with expected vs realized
- *  - rework display of principal investment (for Lucky! multiplier cookies)
- *  - show theoretical return on investment from golden cookies
+ *  Shop:
+ *  - have upgrade calculator show its work
+ *  - clean up display of rows that need manual calculation
+ *  - heuristically determine all the building-doubler upgrades
  *  - document and streamline upgrade cost/benefit calculator
- *  - add to shop: time (or date) of "total time to break even"
- *  - replace obsolete unit of time "minutes" with more contemporary "loops of Ylvis' The Fox"
- *  - report on how much income comes from each source
- *  - report on total spent on each source
+ *  - time (or date) of "total time to buy & break even"
+ *  - indicate which items are affordable (after principal)
+ *  - show fewer digits when all prices are very large
  *  - show how many Heavenly Chips this run is worth, time to next chip
  *  - offer suggestions of when to end it all for the prestige gain
- *  - calculate total cost of buying up to a specified number of buildings
+ *  Golden Cookies:
+ *  - report on handmade cookies during frenzy activity
+ *  - rework display of principal investment (for Lucky! multiplier cookies)
+ *  - show theoretical return on investment from golden cookies
+ *  Reports:
+ *  - report on how much income comes from each source
+ *  - report on total spent on each source
+ *  - report historical CPS, with expected vs realized
+ *  General:
+ *  - inspect Cookie Clicker version for possible compatibility mismatches
+ *  - replace obsolete unit of time "minutes" with more contemporary "loops of Ylvis' The Fox"
  *
  * Anti-Goals:
  *  - New game mechanics or items.
@@ -49,13 +57,12 @@
 // @description Reports on your Cookie Clicker accounting.
 // @match http://orteil.dashnet.org/cookieclicker/
 // @match http://orteil.dashnet.org/cookieclicker/#*
-// @version 0.1.20130917.2
+// @version 0.1.20130919
 // @namespace http://keturn.net/
 // @downloadURL https://raw.github.com/keturn/CookieComptroller/master/comptroller.user.js
 // ==/UserScript==
 
-/*global Game, angular, console */
-
+/*global angular, console */
 
 
 var _Comptroller = function _Comptroller(Game) {
@@ -69,6 +76,7 @@ var _Comptroller = function _Comptroller(Game) {
         GOLDEN_MULTIPLY_FACTOR: 0.1,
         GOLDEN_MULTIPLY_CAP: 60 * 20,
         GOLDEN_FRENZY_FACTOR: 7,
+        // From Game.CalculateGains
         milkUpgrades: {
             'Kitten helpers': 0.05,
             'Kitten workers': 0.1,
@@ -116,7 +124,8 @@ var _Comptroller = function _Comptroller(Game) {
              * else it defaults to Number.toPrecision
              */
             metricPrefixed: function metricPrefixed(n, precision, fixed) {
-                var scaled, scaledStr, prefixIndex = Math.floor(Math.log(Math.abs(n)) / (Math.LN10 * 3));
+                var scaled, scaledStr,
+                    prefixIndex = Math.floor(Math.log(Math.abs(n)) / (Math.LN10 * 3));
                 prefixIndex = Math.min(prefixIndex, _prefixes.length - 1);
                 scaled = n / (Math.pow(1000, prefixIndex));
 
@@ -129,9 +138,11 @@ var _Comptroller = function _Comptroller(Game) {
 
 
             /* How many minutes does it take to make a zillion cookies?
-             * Where "a zillion" is the lowest power of 1000 such that the answer is greater than 1.
+             * Where "a zillion" is the lowest power of 1000 such that the
+             * answer is greater than 1.
              *
-             * e.g. 10 cookies per second = 600 cookies per minute = 1.67 minutes per kilocookie.
+             * e.g. 10 cookies per second = 600 cookies per minute
+             *         = 1.67 minutes per kilocookie.
              */
             timePerCookie: function timePerCookie(cookiesPs) {
                 var secondsPerCookie = 1 / cookiesPs;
@@ -146,8 +157,9 @@ var _Comptroller = function _Comptroller(Game) {
         };
     })();
 
-    /* This is not a great way to store and edit CSS and HTML! But Chrome userscripts don't
-     * provide a way to bundle other assets besides the javascript. */
+    /* This is not a great way to store and edit CSS and HTML! But Chrome
+     * userscripts don't provide a way to bundle other assets besides the
+     * javascript. */
     var ComptrollerAssets = {
         CSS: ("#comptroller {\n" +
             "color: white;" +
@@ -261,10 +273,10 @@ var _Comptroller = function _Comptroller(Game) {
             "</div>\n")
     };
 
-
     // stuff that happens before the Angular app is loaded.
     var Foundation = {
         COMPTROLLER_BUTTON_ID: "comptrollerButton",
+        COMPTROLLER_MENU: "comptroller",
         rootElement: null,
         addComptrollerButton: function () {
             var button, menubar, beforeThis;
@@ -279,11 +291,12 @@ var _Comptroller = function _Comptroller(Game) {
             button.onclick = Foundation.toggleComptroller;
             return button;
         },
+        // event handler for the comptroller menu button
         toggleComptroller: function toggleComptroller() {
-            // Game.ShowMenu doesn't know what comptroller is, but at least with the current 
-            // implementation (1.035) it'll clear the menu area and keep track of the fact that
-            // comptroller is using it.
-            Game.ShowMenu("comptroller");
+            // Game.ShowMenu doesn't know what comptroller is, but at least with
+            // the current implementation (1.036) it'll clear the menu area and
+            // keep track of the fact that comptroller is using it.
+            Game.ShowMenu(Foundation.COMPTROLLER_MENU);
         },
         addComptroller: function addComptroller() {
             var rootElement;
@@ -340,8 +353,8 @@ var _Comptroller = function _Comptroller(Game) {
             // console.debug("Game.Draw hook installed.");
         }
 
-        // I think I'm getting *closer* to a proper seperation of concerns here, but I fear that this service 
-        // definition is still in poor form.
+        // I think I'm getting *closer* to a proper separation of concerns here,
+        // but I fear that this service definition is still in poor form.
 
         this.Game = Game;
         this.cookiesToMinutes = function (cookies) {
@@ -349,6 +362,11 @@ var _Comptroller = function _Comptroller(Game) {
         };
         this.storeObjects = function () { return Game.ObjectsById; };
         this.storeUpgrades = function () { return Game.UpgradesInStore; };
+        /**
+         * How much should you keep in the bank for maximum return from
+         * Lucky multiplier cookies?
+         * @returns {number}
+         */
         this.principalSize = function () {
             var cps = Game.cookiesPs, principal;
 
@@ -366,6 +384,10 @@ var _Comptroller = function _Comptroller(Game) {
             }
             return principal;
         };
+        /**
+         * Global CPS multiplier regardless of any frenzy effects.
+         * @returns {number}
+         */
         this.globalMultNoFrenzy = function globalMultNoFrenzy () {
             if (Game.frenzy > 0) {
                 return Game.globalCpsMult / Game.frenzyPower;
@@ -373,8 +395,12 @@ var _Comptroller = function _Comptroller(Game) {
                 return Game.globalCpsMult;
             }
         };
+        /**
+         * Global CPS multiplier before any Frenzy or Kitten/Milk bonuses.
+         * @returns {number}
+         */
         this.globalUpgradesMult = function globalUpgradesMult () {
-            // This is reversing some things from Game.CalculateGame.
+            // This is working backwards from Game.CalculateGame.
             //   globalCpsMult is the product of four things:
             //   a) the product of all kitten-milk related upgrades
             //   b) the Elder Covenant
@@ -444,6 +470,7 @@ var _Comptroller = function _Comptroller(Game) {
             return (kind === $scope.calculatorMode) ? ['yes'] : [];
         };
 
+        //noinspection JSUnusedGlobalSymbols
         $scope.store = {
             incrementalValue: function (obj) {
                 return (obj.storedCps * CookieClicker.Game.globalCpsMult /
@@ -483,7 +510,7 @@ var _Comptroller = function _Comptroller(Game) {
         $scope.selectedUpgradeDomain = null;
         $scope.selectedUpgradeAdd = 0;
 
-        //noinspection UnnecessaryLocalVariableJS
+        //noinspection UnnecessaryLocalVariableJS,JSUnusedGlobalSymbols
         var calculator = {
             currentCPS: function (domain) {
                 var cps;
