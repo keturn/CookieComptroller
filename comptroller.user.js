@@ -30,8 +30,8 @@
  *  - rework display of principal investment (for Lucky! multiplier cookies)
  *  - show theoretical return on investment from golden cookies
  *  Reports:
- *  - report on how much income comes from each source
- *  - report on total spent on each source
+ *  - show more income detail with % from base, upgrades, flavours, kittens
+ *  - include upgrades on spending chart
  *  - report historical CPS, with expected vs realized
  *  General:
  *  - inspect Cookie Clicker version for possible compatibility mismatches
@@ -162,46 +162,101 @@ var _Comptroller = function _Comptroller(Game) {
      * javascript. */
     var ComptrollerAssets = {
         CSS: ("#comptroller {\n" +
-            "color: white;" +
-            "/* menu container, even when empty, will transparently hover over our content, so we have to one-up it. */\n" +
-            "z-index:1000001; position:absolute; left:16px; right:0px; top:112px;\n" +
+            "    color: white;" +
+            "    /* menu container, even when empty, will transparently hover over our content, so we have to one-up it. */\n" +
+            "    z-index:1000001; position:absolute; left:16px; right:0px; top:112px;\n" +
             "}\n\n" +
             "#comptroller b {\n" + // screw you, reset stylesheets
-            "font-weight: bolder;" +
+            "    font-weight: bolder;" +
+            "}\n\n" +
+            ".comptrollerNav {\n" +
+            "    float: right;\n" +
             "}\n\n" +
             ".comptrollerStore {\n" +
-            "border-collapse: separate; border-spacing: 1px;" +
+            "    border-collapse: separate; border-spacing: 1px;" +
             "}\n\n" +
             ".comptrollerStore td, th {\n" +
             "    padding: 1px 1ex;" +
             "}\n" +
             ".comptrollerStore td {\n" +
-            "background-color: #000A24;" +
+            "    background-color: #000A24;" +
             "}\n\n" +
             ".comptrollerStore tr:nth-of-type(odd) td {\n" +
-            "background-color: #101A3C;" +
+            "    background-color: #101A3C;" +
             "}\n\n" +
             ".comptrollerStore th {\n" +
-            "font-weight: bolder;" +
-            "background-color: #240A24;" +
-            "vertical-align: bottom;" +
+            "    font-weight: bolder;" +
+            "    background-color: #240A24;" +
+            "    vertical-align: bottom;" +
             "}\n\n" +
             "#comptroller .pctInput {\n" +
-            "width: 4em;" +
+            "    width: 4em;" +
             "}\n\n" +
+            ".comptrollerIncomeTable {" +
+            "    color: black;" +
+            "    background-color: #F0F0F0;" +
+            "    border-collapse: collapse;" +
+            "    width: 96%;" +
+            "    margin: 2%;" +
+            "}\n" +
+            ".comptrollerIncomeTable th { font-weight: bolder; }\n" +
+            ".comptrollerIncomeTable th, .comptrollerIncomeTable td { " +
+            "    padding: 0.5ex 1ex;" +
+            "    border-bottom: thin dashed #ccc;" +
+            "    vertical-align: middle;" +
+            "}\n" +
+            ".comptrollerIncomeTable .nameCol {" +
+            "    width: -webkit-min-content;" +
+            "    width: -moz-min-content;" +
+            "    text-align: center;" +
+            "    font-family: Kavoon, Georgia, Serif;" +
+            "}\n" +
+            ".comptrollerIncomeTable .expenseCol {" +
+            "    text-align: right;" +
+            "}\n" +
+            ".comptrollerIncomeTable .expenseBar {" +
+            "    position: absolute;" +
+            "    right: 0;" +
+            "    z-index: 0;" +
+            "    background: hsla(120, 80%, 70%, 1);" +
+            "    border: thin outset hsla(120, 80%, 70%, 1);" +
+            "    width: 15%;" +
+            "}\n" +
+            ".comptrollerIncomeTable .incomeBar {" +
+            "    position: absolute;" +
+            "    left: 0;" +
+            "    z-index: 0;" +
+            "    background: hsla(185, 80%, 70%, 1);" +
+            "    border: thin outset hsla(185, 80%, 70%, 1);" +
+            "    width: 15%;" +
+            "}\n" +
+            ".comptrollerIncomeTable .expenseLabel, .comptrollerIncomeTable .incomeLabel {" +
+            "    position: relative;" +
+            "    z-index: 1;" +
+            "}\n" +
+            ".comptrollerIncomeTable .pct {" +
+            "    width: 8ex;" +
+            "    display: inline-block;" +
+            "    text-align: right;" +
+            "}\n" +
+            ".comptrollerIncomeTable .cellContainer { position: relative; }\n" +
+            /* from tooltip.description */
             "#comptroller .description q {\n" +
             "    display:block; position:relative; text-align:right; " +
             "    margin-top:8px; font-style:italic; opacity:0.7;" +
             "}\n" +
             /* this is very much mirroring the styles of the game's logButton */
             "#comptrollerButton {\n" +
-            "top: 0; right: -16px;" +
-            "font-size: 80%;" +
-            "padding: 14px 16px 10px 0px;" +
+            "    top: 0; right: -16px;" +
+            "    font-size: 80%;" +
+            "    padding: 14px 16px 10px 0px;" +
             "}\n\n" +
             "#comptrollerButton:hover{right:-8px;}" +
-            "}\n\n"),
+            "}\n\n" +
+            "/*# sourceURL=comptroller.css */"),
         HTML: ("<div ng-controller='ComptrollerController' ng-show='comptrollerVisible()'>\n" +
+            "<div class='comptrollerNav'>" +
+            "<select ng-model='pane' ng-options='pane for pane in panes'></select></div> " +
             /* frenzy? */
             "<p ng-show='Game.frenzy'>&#xa1;&#xa1;FRENZY!! " +
             "{{ Game.frenzyPower * 100 }}% for {{ (Game.frenzy / Game.fps).toFixed(1) }} seconds.</p>\n" +
@@ -212,8 +267,9 @@ var _Comptroller = function _Comptroller(Game) {
             "(principal {{ (Game.cookies > principalSize()) && '+' || '' }}{{ Game.cookies - principalSize() | metricPrefixed }}cookies) at<br />\n" +
             "{{ Game.cookiesPs | metricPrefixed }}cookies per second, {{ Game.cookiesPs * 60 | metricPrefixed }}cookies per minute, or <br />\n" +
             "{{ timePerCookie() }}.</p>\n" +
+            "<div ng-switch='pane'>" +
             /* store */
-            "<table class='comptrollerStore'>\n" +
+            "<table ng-switch-when='store' class='comptrollerStore'>\n" +
             /* headers */
             "<tr><th>Price (<img src='img/money.png' alt='cookies' />)</th>" +
             "<th>Name</th><th>Price<br />(min)</th>" +
@@ -270,6 +326,35 @@ var _Comptroller = function _Comptroller(Game) {
             "</tbody>\n" +
             "<tr><th colspan='5' ng-hide='calculatorMode'>click a row to show the calculator</th></tr>\n" +
             "</ng-switch>\n</table>\n" +
+            /* Income and Expense report */
+            "<div ng-switch-when='income' class='comptrollerIncome'>" +
+            "<table class='comptrollerIncomeTable' ng-controller='IncomeController'>" +
+            "<colgroup>" +
+            "    <col class='expenseCol'/>" +
+            "    <col class='nameCol'/>" +
+            "    <col class='incomeCol'/>" +
+            "</colgroup>\n" +
+            "<tr><th>Spent</th><th>Name</th><th><abbr title='Cookies per Second'>CPS</abbr></th></tr>" +
+            "<tbody>\n" +
+            /* oh geez absolute positioning within table cells is buckets of fun. */
+            "<tr ng-repeat='obj in storeObjects()'>" +
+            "  <td class='expenseCol'><div class='cellContainer'>" +
+            "    <div class='expenseBar' ng-style='{width: pctSpentOn(obj) * 100 + \"%\"}'>&nbsp;</div>" +
+            "    <div class='expenseLabel'>" +
+            "      <span class='spend'>{{ spentOn(obj) | number:0 }}</span>" +
+            "      <span class='pct'>{{ pctSpentOn(obj) * 100 | number }}%</span>" +
+            "  </div></div></td>" +
+            "  <td class='nameCol' ng-bind-html-unsafe='obj.name'></td>" +
+            "  <td class='incomeCol'><div class='cellContainer'>" +
+            "    <div class='incomeBar' ng-style='{width: incomePct(obj) * 100 + \"%\"}'>&nbsp;</div>" +
+            "    <div class='incomeLabel'>" +
+            "      <span class='pct'>{{ incomePct(obj) * 100| number }}%</span>" +
+            "      <span class='income'>{{ income(obj) | number:0 }}</span>" +
+            "    </div>" +
+            "  </td>" +
+            "</tr>\n" +
+            "</tbody></table>\n" +
+            "</div>" +
             "</div>\n")
     };
 
@@ -430,6 +515,8 @@ var _Comptroller = function _Comptroller(Game) {
 
 
     var ComptrollerController = function ComptrollerController($scope, CookieClicker) {
+        $scope.panes = ["store", "income"];
+        $scope.pane = $scope.panes[0];
         // The organization here is still rather confused. Which things go
         // on the model, which things go on the scope? How much direct access
         // to the model should the view have? Should we ever allow the view
@@ -606,6 +693,58 @@ var _Comptroller = function _Comptroller(Game) {
         };
     };
 
+    var IncomeController = function IncomeController($scope, CookieClicker) {
+        var totalSpent = function totalSpent() {
+            return CookieClicker.Game.cookiesEarned - CookieClicker.Game.cookies;
+        };
+        var totalBuildingSpent = function totalBuildingSpent() {
+            // I am trying not to prematurely optimize, but this probably gets
+            // called about 40 times per digest and it doesn't change nearly
+            // that frequently. We'll see if it shows up as a hot spot.
+            var buildingSpent = 0;
+            angular.forEach(CookieClicker.storeObjects(),
+                function (building) {
+                    buildingSpent += $scope.spentOn(building);
+                });
+            return buildingSpent;
+        };
+        /**
+         * @param building {Game.Object}
+         * @returns {number}
+         */
+        $scope.spentOn = function spentOn(building) {
+            var total = 0,
+                basePrice = building.basePrice,
+                amount,
+                target = building.amount;
+            for (amount = 0; amount < target; amount += 1) {
+                total += basePrice * Math.pow(CookieClicker.Game.priceIncrease,
+                    amount);
+            }
+            return total;
+        };
+        $scope.pctSpentOn = function pctSpentOn(building) {
+            return $scope.spentOn(building) / totalBuildingSpent();
+        };
+        /**
+         * @param building {Game.Object}
+         * @returns {number}
+         */
+        $scope.incomePct = function incomePct(building) {
+            return $scope.income(building) / CookieClicker.Game.cookiesPs;
+        };
+        $scope.income = function income(building) {
+            return building.storedTotalCps * CookieClicker.Game.globalCpsMult;
+        };
+        $scope.spentOnOther = function spentOnOther() {
+            return totalSpent() - totalBuildingSpent();
+        };
+        $scope.pctSpentOnOther = function pctSpentOnOther() {
+            return $scope.spentOnOther() / totalSpent();
+        };
+    };
+
+
     var defineServices = function defineServices() {
         var module = angular.module("cookieComptroller", []);
 
@@ -616,6 +755,7 @@ var _Comptroller = function _Comptroller(Game) {
         module.controller("ComptrollerController", ComptrollerController);
         module.controller("UpgradeCalculatorController", UpgradeCalculatorController);
         module.controller("BuildingCalculatorController", BuildingCalculatorController);
+        module.controller("IncomeController", IncomeController);
 
         /* Filters. */
         module.filter("metricPrefixed", function () { return FormatUtils.metricPrefixed;});
