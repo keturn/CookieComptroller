@@ -161,11 +161,16 @@ var _Comptroller = function _Comptroller(Game) {
      * userscripts don't provide a way to bundle other assets besides the
      * javascript. */
     var ComptrollerAssets = {
-        CSS: ("#comptroller {\n" +
+        CSS: ("@import url(http://fonts.googleapis.com/css?family=Roboto:400,700&subset=latin,latin-ext);\n" +
+            "\n" +
+            "#comptroller {\n" +
             "    color: white;" +
             "    /* menu container, even when empty, will transparently hover over our content, so we have to one-up it. */\n" +
             "    z-index:1000001; position:absolute; left:16px; right:0px; top:112px;\n" +
             "}\n\n" +
+            "#comptroller table {\n" +
+            "    font-family: 'Roboto', 'Open Sans', sans-serif;" +
+            "}\n" +
             "#comptroller b {\n" + // screw you, reset stylesheets
             "    font-weight: bolder;" +
             "}\n\n" +
@@ -179,13 +184,13 @@ var _Comptroller = function _Comptroller(Game) {
             "    padding: 1px 1ex;" +
             "}\n" +
             ".comptrollerStore td {\n" +
+            "    color: #EAEAEA;" +
             "    background-color: #000A24;" +
             "}\n\n" +
             ".comptrollerStore tr:nth-of-type(odd) td {\n" +
             "    background-color: #101A3C;" +
             "}\n\n" +
             ".comptrollerStore th {\n" +
-            "    font-weight: bolder;" +
             "    background-color: #240A24;" +
             "    vertical-align: bottom;" +
             "}\n\n" +
@@ -199,7 +204,7 @@ var _Comptroller = function _Comptroller(Game) {
             "    width: 96%;" +
             "    margin: 2%;" +
             "}\n" +
-            ".comptrollerIncomeTable th { font-weight: bolder; }\n" +
+            ".comptrollerIncomeTable th { font-size: larger; }\n" +
             ".comptrollerIncomeTable th, .comptrollerIncomeTable td { " +
             "    padding: 0.5ex 1ex;" +
             "    border-bottom: thin dashed #ccc;" +
@@ -334,7 +339,8 @@ var _Comptroller = function _Comptroller(Game) {
             "    <col class='nameCol'/>" +
             "    <col class='incomeCol'/>" +
             "</colgroup>\n" +
-            "<tr><th>Spent</th><th>Name</th><th><abbr title='Cookies per Second'>CPS</abbr></th></tr>" +
+            "<tr><th>Spent</th><th>Name</th>" +
+            "<th>Income (<abbr title='Cookies per Second'>CPS</abbr>)</th></tr>" +
             "<tbody>\n" +
             /* oh geez absolute positioning within table cells is buckets of fun. */
             "<tr ng-repeat='obj in storeObjects()'>" +
