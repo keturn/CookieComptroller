@@ -513,6 +513,22 @@ var _Comptroller = function _Comptroller(Game) {
             return thisService.globalMultNoFrenzy() / mult;
         };
 
+        /**
+         * @param building {Game.Object}
+         * @param have {number} The number of buildings you already have.
+         * @param target {number} The total number of buildings you want.
+         * @returns {number} The total cost to buy all the buildings.
+         */
+        this.costForBuildings = function costForBuildings(building, have, target) {
+            // From Game.Object.buy, the price of a single building is
+            // base * priceIncrease^amount
+            // Wolfram Alpha helped with the sums.
+            return (building.basePrice *
+                (Math.pow(Game.priceIncrease, target) -
+                    Math.pow(Game.priceIncrease, have)) /
+                (Game.priceIncrease - 1));
+        };
+
         /* UI */
         this.onMenu = function () { return Game.onMenu; };
 
@@ -678,16 +694,8 @@ var _Comptroller = function _Comptroller(Game) {
                 $scope.selected.plural));
         };
         $scope.totalCost = function totalCost() {
-            var total = 0,
-                basePrice = $scope.selected.basePrice,
-                amount = $scope.selected.amount,
-                target = $scope.targetAmount;
-            while (amount < target) {
-                total += basePrice * Math.pow(CookieClicker.Game.priceIncrease,
-                    amount);
-                amount += 1;
-            }
-            return total;
+            return CookieClicker.costForBuildings(
+                $scope.selected, $scope.selected.amount, $scope.targetAmount);
         };
         $scope.totalIncrementalValue = function () {
             return ($scope.store.incrementalValue($scope.selected) *
@@ -707,11 +715,11 @@ var _Comptroller = function _Comptroller(Game) {
             // I am trying not to prematurely optimize, but this probably gets
             // called about 40 times per digest and it doesn't change nearly
             // that frequently. We'll see if it shows up as a hot spot.
-            var buildingSpent = 0;
-            angular.forEach(CookieClicker.storeObjects(),
-                function (building) {
-                    buildingSpent += $scope.spentOn(building);
-                });
+            var building, buildingSpent = 0;
+            for (var i = 0; i < CookieClicker.Game.ObjectsN; i++) {
+                building = CookieClicker.Game.ObjectsById[i];
+                buildingSpent += $scope.spentOn(building);
+            }
             return buildingSpent;
         };
         /**
@@ -719,15 +727,7 @@ var _Comptroller = function _Comptroller(Game) {
          * @returns {number}
          */
         $scope.spentOn = function spentOn(building) {
-            var total = 0,
-                basePrice = building.basePrice,
-                amount,
-                target = building.amount;
-            for (amount = 0; amount < target; amount += 1) {
-                total += basePrice * Math.pow(CookieClicker.Game.priceIncrease,
-                    amount);
-            }
-            return total;
+            return CookieClicker.costForBuildings(building, 0, building.amount);
         };
         $scope.pctSpentOn = function pctSpentOn(building) {
             return $scope.spentOn(building) / totalBuildingSpent();
