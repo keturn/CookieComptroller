@@ -13,7 +13,7 @@ Installation
 
 Cookie Comptroller may be added to `Google Chrome`_ or to Firefox_ with
 Greasemonkey_. Install Cookie Comptroller from its
-**`page on userscripts.org`_**.
+`page on userscripts.org`_.
 
 If you later wish to disable or uninstall Cookie Clicker, do so from your
 browser's configuration screen for add-ons or extensions.
@@ -54,7 +54,7 @@ forward-compatible with minor Cookie Clicker updates, but changes to Cookie
 Clicker may render Cookie Comptroller inaccurate or inoperational at any time.
 
 `Cookie Monster`_ users take note: Cookie Monster might not load after Cookie
-Comptroller. If you can figure out how to make Cookie Monster load _before_
+Comptroller. If you can figure out how to make Cookie Monster load *before*
 Cookie Comptroller, that might work.
 
 .. _Cookie Monster: http://cookieclicker.wikia.com/wiki/Cookie_Monster_(JavaScript_Add-on)
