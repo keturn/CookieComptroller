@@ -89,6 +89,8 @@ var _Comptroller = function _Comptroller(Game) {
         }
     };
 
+    var WIKI = 'https://github.com/keturn/CookieComptroller/wiki/';
+
     /* String formatting functions. Purely functional with no game logic or advanced object types. */
     var FormatUtils = (function () {
         var _prefixes = ['', 'kilo', 'mega', 'giga', 'tera', 'peta', 'exa', 'zetta', 'yotta'];
@@ -205,6 +207,12 @@ var _Comptroller = function _Comptroller(Game) {
             "}\n\n" +
             ".comptrollerNav {\n" +
             "    float: right;\n" +
+            "}\n\n" +
+            "#comptroller .helpLink {\n" +
+            "    font-family: Kavoon, Georgia, serif;\n" +
+            "    font-size: larger;\n" +
+            "    float: right;" +
+            "    margin: 1em;" +
             "}\n\n" +
             ".comptrollerPane {\n" +
             "    overflow-x: auto;" +
@@ -399,8 +407,11 @@ var _Comptroller = function _Comptroller(Game) {
             "  </td>" +
             "</tr>\n" +
             "</tbody></table>\n" +
-            "</div>" +
-            "</div>\n")
+            "<!-- end div.comptrollerIncome --></div>\n" +
+            "<!-- end div.comptrollerPane --></div>\n" +
+            "<p class='helpLink'><a target='_blank' rel='help' href='{{ helpURL() }}'>Help?</a></p>\n" +
+            "<!-- end ComptrollerController --></div>\n" +
+            "<!-- end of div#comptroller --></div>\n")
     };
 
     // stuff that happens before the Angular app is loaded.
@@ -586,6 +597,10 @@ var _Comptroller = function _Comptroller(Game) {
             $scope, CookieClicker, numberFilter) {
         $scope.panes = ["purchasing", "income"];
         $scope.pane = $scope.panes[0];
+        var helpLinks = {
+                "purchasing": WIKI + "Help:Purchasing",
+                "income": WIKI + "Help:Income"
+        };
         // The organization here is still rather confused. Which things go
         // on the model, which things go on the scope? How much direct access
         // to the model should the view have? Should we ever allow the view
@@ -610,6 +625,10 @@ var _Comptroller = function _Comptroller(Game) {
 
         $scope.selected = undefined;
         $scope.calculatorMode = null;
+
+        $scope.helpURL = function () {
+            return helpLinks[$scope.pane];
+        };
 
         /**
          * How long will it take to buy our way to a 15% CPS increase?
