@@ -154,6 +154,30 @@ var _Comptroller = function _Comptroller(Game) {
                     prefix = prefixes.shift();
                 }
                 return minsPer.toPrecision(3) + " minutes per " + prefix + "cookie";
+            },
+            /**
+             * A string to represent a duration with only one or two
+             * significant digits.
+             * @param {number} seconds
+             * @returns {string}
+             */
+            lowPrecisionTime: function lowPrecisionTime(seconds) {
+                var text;
+                if (seconds < 10) {
+                    text = "less than 10 seconds";
+                } else if (seconds < 100) {
+                    // round to the nearest 5 to reflect limited precision
+                    text = (Math.round(seconds / 5) * 5).toString() + ' seconds';
+                } else if (seconds < 60 * 90) {
+                    text = (Math.round(seconds / 60 / 5) * 5).toString() + ' minutes';
+                } else if (seconds < 3600 * 40) {
+                    text = Math.round(seconds / 3600).toString() + ' hours';
+                } else if (seconds < 3600 * 24 * 20) {
+                    text = Math.round(seconds / (3600 * 24)).toString() + ' days';
+                } else {
+                    text = Math.round(seconds / (3600 * 24 * 7)).toString() + ' weeks';
+                }
+                return text;
             }
         };
     })();
@@ -555,6 +579,7 @@ var _Comptroller = function _Comptroller(Game) {
      *
      * @param $scope
      * @param CookieClicker {CookieClickerService}
+     * @param numberFilter {function}
      * @constructor
      */
     var ComptrollerController = function ComptrollerController(
@@ -601,6 +626,17 @@ var _Comptroller = function _Comptroller(Game) {
             deltaBaseCPS = (cps * growthSize /
                 CookieClicker.globalMultNoFrenzy());
 
+            // How long will that take?
+            // The approach below is relatively simple-minded: It calculates
+            // the cost to buy that much CPS with each building type, and picks
+            // the cheapest.
+            // It doesn't consider buying a mix of buildings, but that should
+            // hurt the accuracy only a small amount, since smaller buildings
+            // will contribute an order of magnitude less CPS.
+            // A bigger flaw is that it does not consider upgrades.  If the
+            // player has been buying balanced buildings and upgrades, our
+            // answer should still be in the right ballpark, but an overlooked
+            // upgrade could make our estimate too pessimistic.
             angular.forEach(CookieClicker.storeObjects(), function (building) {
                 var buildings = deltaBaseCPS / building.storedCps;
                 var cost = CookieClicker.costForBuildings(
@@ -608,20 +644,7 @@ var _Comptroller = function _Comptroller(Game) {
                 lowestCost = Math.min(lowestCost, cost);
             });
             seconds = lowestCost / cps;
-            if (seconds < 10) {
-                text = "less than 10 seconds";
-            } else if (seconds < 100) {
-                // round to the nearest 5 to reflect limited precision
-                text = (Math.round(seconds/5) * 5).toString() + ' seconds';
-            } else if (seconds < 60 * 90) {
-                text = (Math.round(seconds/60/5) * 5).toString() + ' minutes';
-            } else if (seconds < 3600 * 40) {
-                text = Math.round(seconds/3600).toString() + ' hours';
-            } else if (seconds < 3600 * 24 * 20) {
-                text = Math.round(seconds/(3600*24)).toString() + ' days';
-            } else {
-                text = Math.round(seconds/(3600*24*7)).toString() + ' weeks';
-            }
+            text = FormatUtils.lowPrecisionTime(seconds);
             return text;
         };
 
