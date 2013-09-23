@@ -17,9 +17,7 @@
  * TODO:
  *  Shop:
  *  - have upgrade calculator show its work
- *  - clean up display of rows that need manual calculation
  *  - heuristically determine all the building-doubler upgrades
- *  - document and streamline upgrade cost/benefit calculator
  *  - time (or date) of "total time to buy & break even"
  *  - indicate which items are affordable (after principal)
  *  - show fewer digits when all prices are very large
@@ -31,7 +29,6 @@
  *  - show theoretical return on investment from golden cookies
  *  Reports:
  *  - show more income detail with % from base, upgrades, flavours, kittens
- *  - don't show rows for things with amount=0
  *  - include upgrades on spending chart
  *  - report historical CPS, with expected vs realized
  *  General:
@@ -58,7 +55,7 @@
 // @description Reports on your Cookie Clicker accounting.
 // @match http://orteil.dashnet.org/cookieclicker/
 // @match http://orteil.dashnet.org/cookieclicker/#*
-// @version 0.2.20130921
+// @version 0.2.20130923
 // @namespace http://keturn.net/
 // @downloadURL https://raw.github.com/keturn/CookieComptroller/master/comptroller.user.js
 // ==/UserScript==
@@ -390,7 +387,7 @@ var _Comptroller = function _Comptroller(Game) {
             "<th>Income (<abbr title='Cookies per Second'>CPS</abbr>)</th></tr>" +
             "<tbody>\n" +
             /* oh geez absolute positioning within table cells is buckets of fun. */
-            "<tr ng-repeat='obj in storeObjects()'>" +
+            "<tr ng-repeat='obj in storeObjects()' ng-show='obj.amount'>" +
             "  <td class='expenseCol'><div class='cellContainer'>" +
             "    <div class='expenseBar' ng-style='{width: pctSpentOn(obj) * 100 + \"%\"}'>&nbsp;</div>" +
             "    <div class='expenseLabel'>" +
