@@ -31,6 +31,7 @@
  *  - show theoretical return on investment from golden cookies
  *  Reports:
  *  - show more income detail with % from base, upgrades, flavours, kittens
+ *  - don't show rows for things with amount=0
  *  - include upgrades on spending chart
  *  - report historical CPS, with expected vs realized
  *  General:
@@ -167,7 +168,11 @@ var _Comptroller = function _Comptroller(Game) {
             "    color: white;" +
             "    /* menu container, even when empty, will transparently hover over our content, so we have to one-up it. */\n" +
             "    z-index:1000001; position:absolute; left:16px; right:0px; top:112px;\n" +
+            "    margin: 1em;\n" +
             "}\n\n" +
+            "#comptroller p + p {\n" +
+            "    margin-bottom: 1em;" +
+            "}" +
             "#comptroller table {\n" +
             "    font-family: 'Roboto', 'Open Sans', sans-serif;" +
             "}\n" +
@@ -177,6 +182,9 @@ var _Comptroller = function _Comptroller(Game) {
             ".comptrollerNav {\n" +
             "    float: right;\n" +
             "}\n\n" +
+            ".comptrollerPane {\n" +
+            "    overflow-x: auto;" +
+            "}\n" +
             ".comptrollerStore {\n" +
             "    border-collapse: separate; border-spacing: 1px;" +
             "}\n\n" +
@@ -196,6 +204,9 @@ var _Comptroller = function _Comptroller(Game) {
             "}\n\n" +
             "#comptroller .pctInput {\n" +
             "    width: 4em;" +
+            "}\n\n" +
+            "#comptroller .priceCookie {\n" +
+            "    vertical-align: bottom;" +
             "}\n\n" +
             ".comptrollerIncomeTable {" +
             "    color: black;" +
@@ -225,6 +236,7 @@ var _Comptroller = function _Comptroller(Game) {
             "    z-index: 0;" +
             "    background: hsla(120, 80%, 70%, 1);" +
             "    border: thin outset hsla(120, 80%, 70%, 1);" +
+            "    border-radius: 1ex 0 0 0;" +
             "    width: 15%;" +
             "}\n" +
             ".comptrollerIncomeTable .incomeBar {" +
@@ -233,6 +245,7 @@ var _Comptroller = function _Comptroller(Game) {
             "    z-index: 0;" +
             "    background: hsla(185, 80%, 70%, 1);" +
             "    border: thin outset hsla(185, 80%, 70%, 1);" +
+            "    border-radius: 0 1ex 0 0;" +
             "    width: 15%;" +
             "}\n" +
             ".comptrollerIncomeTable .expenseLabel, .comptrollerIncomeTable .incomeLabel {" +
@@ -272,11 +285,13 @@ var _Comptroller = function _Comptroller(Game) {
             "(principal {{ (Game.cookies > principalSize()) && '+' || '' }}{{ Game.cookies - principalSize() | metricPrefixed }}cookies) at<br />\n" +
             "{{ Game.cookiesPs | metricPrefixed }}cookies per second, {{ Game.cookiesPs * 60 | metricPrefixed }}cookies per minute, or <br />\n" +
             "{{ timePerCookie() }}.</p>\n" +
-            "<div ng-switch='pane'>" +
+            "<p>At current prices it will take roughly {{ timeToAccel() }} to " +
+            "buy 15% more CPS.</p>" +
+            "<div ng-switch='pane' class='comptrollerPane'>" +
             /* store */
-            "<table ng-switch-when='store' class='comptrollerStore'>\n" +
+            "<table ng-switch-when='purchasing' class='comptrollerStore'>\n" +
             /* headers */
-            "<tr><th>Price (<img src='img/money.png' alt='cookies' />)</th>" +
+            "<tr><th>Price (<img src='img/money.png' class='priceCookie' alt='cookies' />)</th>" +
             "<th>Name</th><th>Price<br />(min)</th>" +
             "<th>Incremental<br />Value %</th><th>Time to Repay<br/>(min)</th></tr>\n" +
             /* objects */
@@ -453,17 +468,18 @@ var _Comptroller = function _Comptroller(Game) {
         };
         this.storeObjects = function () { return Game.ObjectsById; };
         this.storeUpgrades = function () { return Game.UpgradesInStore; };
+        this.cpsWithoutFrenzy = function () {
+            return (Game.frenzy > 0 ?
+                Game.cookiesPs / Game.frenzyPower :
+                Game.cookiesPs);
+        };
         /**
          * How much should you keep in the bank for maximum return from
          * Lucky multiplier cookies?
          * @returns {number}
          */
         this.principalSize = function () {
-            var cps = Game.cookiesPs, principal;
-
-            if (Game.frenzy > 0) {
-                cps = cps / Game.frenzyPower;
-            }
+            var cps = thisService.cpsWithoutFrenzy(), principal;
 
             principal = (cps * CCConstants.GOLDEN_MULTIPLY_CAP /
                 CCConstants.GOLDEN_MULTIPLY_FACTOR);
@@ -535,9 +551,14 @@ var _Comptroller = function _Comptroller(Game) {
         return this;
     };
 
-
+    /**
+     *
+     * @param $scope
+     * @param CookieClicker {CookieClickerService}
+     * @constructor
+     */
     var ComptrollerController = function ComptrollerController($scope, CookieClicker) {
-        $scope.panes = ["store", "income"];
+        $scope.panes = ["purchasing", "income"];
         $scope.pane = $scope.panes[0];
         // The organization here is still rather confused. Which things go
         // on the model, which things go on the scope? How much direct access
@@ -564,7 +585,46 @@ var _Comptroller = function _Comptroller(Game) {
         $scope.selected = undefined;
         $scope.calculatorMode = null;
 
-        $scope.setSelected = function setSelected (obj) {
+        /**
+         * How long will it take to buy our way to a 15% CPS increase?
+         * (Picking 15% because it is the growth rate for prices, and it
+         * is much smaller than, say, doubling time, which means errors in
+         * our imprecise calculations will have less room to compound.)
+         * @returns {string}
+         */
+        $scope.timeToAccel = function timeToAccel() {
+            var cps, deltaBaseCPS, growthSize=0.15, lowestCost=Infinity,
+                seconds, text;
+            cps = CookieClicker.cpsWithoutFrenzy();
+            // How much more base CPS do we need to reach that target?
+            deltaBaseCPS = (cps * growthSize /
+                CookieClicker.globalMultNoFrenzy());
+
+            angular.forEach(CookieClicker.storeObjects(), function (building) {
+                var buildings = deltaBaseCPS / building.storedCps;
+                var cost = CookieClicker.costForBuildings(
+                    building, building.amount, building.amount + buildings);
+                lowestCost = Math.min(lowestCost, cost);
+            });
+            seconds = lowestCost / cps;
+            if (seconds < 10) {
+                text = "less than 10 seconds";
+            } else if (seconds < 100) {
+                // round to the nearest 5 to reflect limited precision
+                text = (Math.round(seconds/5) * 5).toString() + ' seconds';
+            } else if (seconds < 60 * 90) {
+                text = (Math.round(seconds/60/5) * 5).toString() + ' minutes';
+            } else if (seconds < 3600 * 40) {
+                text = Math.round(seconds/3600).toString() + ' hours';
+            } else if (seconds < 3600 * 24 * 20) {
+                text = Math.round(seconds/(3600*24)).toString() + ' days';
+            } else {
+                text = Math.round(seconds/(3600*24*7)).toString() + ' weeks';
+            }
+            return text;
+        };
+
+        $scope.setSelected = function setSelected(obj) {
             $scope.selected = obj;
             if (obj instanceof CookieClicker.Game.Object) {
                 $scope.calculatorMode = "building";
@@ -617,7 +677,7 @@ var _Comptroller = function _Comptroller(Game) {
      */
     var UpgradeCalculatorController = function ($scope, CookieClicker) {
         $scope.selectedUpgradeDomain = null;
-        $scope.selectedUpgradeAdd = 0;
+        $scope.selectedUpgradeAdd = 100;
 
         //noinspection UnnecessaryLocalVariableJS,JSUnusedGlobalSymbols
         var calculator = {
