@@ -308,7 +308,7 @@ var _Comptroller = function _Comptroller(Game) {
             "    <td style='text-align: right'>{{ obj.basePrice | number:0 }}</td>" +
             "    <td style='text-align: left' ng-bind-html-unsafe='obj.name'></td>" +
             "    <td style='text-align: right'>{{ cookiesToMinutes(obj.basePrice) | number:1 }}</td>" +
-            "    <td style='text-align: right'>{{ store.upgradeValue(obj) * 100 || '?' | number }}%</td>" +
+            "    <td style='text-align: right'>{{ store.upgradeValue(obj) }}</td>" +
             "    <td style='text-align: right'>{{ store.timeToRepayUpgrade(obj) | number:1 }}</td>" +
             "</tr>\n" +
             "</tbody>\n" +
@@ -557,7 +557,8 @@ var _Comptroller = function _Comptroller(Game) {
      * @param CookieClicker {CookieClickerService}
      * @constructor
      */
-    var ComptrollerController = function ComptrollerController($scope, CookieClicker) {
+    var ComptrollerController = function ComptrollerController(
+            $scope, CookieClicker, numberFilter) {
         $scope.panes = ["purchasing", "income"];
         $scope.pane = $scope.panes[0];
         // The organization here is still rather confused. Which things go
@@ -635,17 +636,24 @@ var _Comptroller = function _Comptroller(Game) {
             }
         };
 
+        // returning an array with 0 or 1 elements lets us use ng-repeat as
+        // a conditional. kludgy; re-evaluate when upgrading to angular 1.2.
         $scope.showCalculator = function showCalculator (kind) {
             return (kind === $scope.calculatorMode) ? ['yes'] : [];
         };
 
         //noinspection JSUnusedGlobalSymbols
         $scope.store = {
+            // buildings
             incrementalValue: function (obj) {
                 return (obj.storedCps * CookieClicker.Game.globalCpsMult /
                     CookieClicker.Game.cookiesPs);
             },
-            upgradeValue: function (upgrade) {
+            minutesToRepay: function (obj) {
+                return obj.price / (obj.storedCps * CookieClicker.Game.globalCpsMult) / 60;
+            },
+            // upgrades
+            _upgradeValue: function (upgrade) {
                 /* Cookie flavours have data on their modifiers. Many others don't. */
                 if (upgrade.type === 'cookie' && upgrade.power) {
                     var multiplierAdd = upgrade.power / 100;
@@ -656,14 +664,20 @@ var _Comptroller = function _Comptroller(Game) {
                 }
                 return undefined;
             },
+            upgradeValue: function (upgrade) {
+                // Is this the sort of thing we ought to write a directive for?
+                var increase = $scope.store._upgradeValue(upgrade);
+                if (increase) {
+                    return numberFilter(increase * 100) + '%';
+                } else {
+                    return "calc?";
+                }
+            },
             // in minutes
             timeToRepayUpgrade: function timeToRepayUpgrade(upgrade) {
-                var multiplier = $scope.store.upgradeValue(upgrade);
+                var multiplier = $scope.store._upgradeValue(upgrade);
                 var gainedCPS = CookieClicker.Game.cookiesPs * multiplier;
                 return upgrade.basePrice / gainedCPS / 60;
-            },
-            minutesToRepay: function (obj) {
-                return obj.price / (obj.storedCps * CookieClicker.Game.globalCpsMult) / 60;
             }
         };
     };
