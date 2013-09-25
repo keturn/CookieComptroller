@@ -347,7 +347,7 @@ var _Comptroller = function _Comptroller(Game) {
             "<tr><th colspan='5'>Upgrade Calculator</th></tr>\n" +
             "<tr>\n" +
             "    <td style='text-align: right'>{{ selected.basePrice | number:0 }}</td>" +
-            "    <td>{{ selected.name }}</td>" +
+            "    <td ng-bind-html-unsafe='selected.name'></td>" +
             "    <td style='text-align: right'>{{ cookiesToMinutes(selected.basePrice) | number:1 }}</td>" +
             "    <td colspan='2' rowspan='2'></td></tr>\n" +
             "<tr><td colspan='3' class='description' ng-bind-html-unsafe='selected.desc'></td></tr>\n" +
