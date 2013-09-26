@@ -55,12 +55,12 @@
 // @description Reports on your Cookie Clicker accounting.
 // @match http://orteil.dashnet.org/cookieclicker/
 // @match http://orteil.dashnet.org/cookieclicker/#*
-// @version 0.2.20130923
+// @version 0.2.20130926
 // @namespace http://keturn.net/
 // @downloadURL https://raw.github.com/keturn/CookieComptroller/master/comptroller.user.js
 // ==/UserScript==
 
-/*global angular, console */
+/*global angular */
 
 
 var _Comptroller = function _Comptroller(Game) {
@@ -83,7 +83,8 @@ var _Comptroller = function _Comptroller(Game) {
         },
         malus: {
             'Elder Covenant': 0.95
-        }
+        },
+        UPDATE_ON_ELEMENT: 'cookies'
     };
 
     var WIKI = 'https://github.com/keturn/CookieComptroller/wiki/';
@@ -473,23 +474,30 @@ var _Comptroller = function _Comptroller(Game) {
     };
 
 
-    /* Make the stock Cookie Clicker Game object injectable into Angular objects, and hook in to its mainloop so
-     * Angular can find updated data. */
-    var CookieClickerService = function CookieClickerService ($rootScope) {
-        var thisService = this, origDraw = Game.Draw;
+    /**
+     * Make the stock Cookie Clicker Game object injectable into Angular
+     * objects, and hook in to its mainloop so Angular can find updated data.
+     * @param $rootScope {Scope}
+     * @returns {CookieClickerService}
+     * @constructor
+     */
+    var CookieClickerService = function CookieClickerService($rootScope) {
+        var thisService = this;
 
-        // monkeypatch the game's Draw function so that Angular data gets updated.
-        if (Game._ccompOrigDraw) {
-            console.warn("Game.Draw already hooked?");
-        } else {
-            /*** MAINLOOP HOOK ***/
-            Game._ccompOrigDraw = origDraw;
-            Game.Draw = function DrawWithCookieComptroller() {
-                origDraw.apply(Game, arguments);
-                $rootScope.$apply();
-            };
-            // console.debug("Game.Draw hook installed.");
-        }
+        /* The goal is to get angular watchers updated when game data changes,
+         * preferably in sync with the game's draw cycle. Ideally we'd have a
+         * way to hook into the game's mainloop and run when Game.Draw does.
+         * Earlier versions monkey-patched a call to us into Game.Draw, but
+         * that made things too brittle when integrating with other add-ons
+         * (i.e. Cookie Monster).
+         */
+
+        this.onChange = function onChange() { $rootScope.$apply(); };
+        this.observer = new MutationObserver(this.onChange);
+        this.observer.observe(
+            document.getElementById(CCConstants.UPDATE_ON_ELEMENT),
+            {childList: true}
+        );
 
         // I think I'm getting *closer* to a proper separation of concerns here,
         // but I fear that this service definition is still in poor form.
