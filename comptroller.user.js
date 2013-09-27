@@ -56,7 +56,7 @@
 // @match http://orteil.dashnet.org/cookieclicker/#*
 // @version 0.2.20130927
 // @namespace http://keturn.net/
-// @downloadURL https://raw.github.com/keturn/CookieComptroller/master/comptroller.user.js
+// @downloadURL https://userscripts.org/scripts/source/177907.user.js
 // ==/UserScript==
 
 /*global angular */
