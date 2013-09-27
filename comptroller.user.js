@@ -43,19 +43,18 @@
  *    If you want an add-on that's really smart about upgrades, seek out Cookie Monster. It's great!
  *
  * Compatibility notes:
- *  - As of Cookie Monster 1.036.03, you can no longer load Cookie Monster after
- *    Cookie Comptroller. Loading Cookie Monster _before_ Cookie Comptroller
- *    probably still works. There is one very significant issue though: it makes
- *    Golden Cookies spawn *under* the Comptroller UI if you have it open at the
- *    time. You have to close it (or switch to another menu) to click on the
- *    cookie.
+ *  - As of Cookie Clicker 0.2.20130927, Cookie Monster and Cookie Comptroller
+ *    may be loaded at teh same time, but there is one very significant issue:
+ *    it makes Golden Cookies spawn *under* the Comptroller UI if you have it
+ *    open at the time. You have to close it (or switch to another menu) to
+ *    click on the cookie.
  */
 // ==UserScript==
 // @name Cookie Comptroller
 // @description Reports on your Cookie Clicker accounting.
 // @match http://orteil.dashnet.org/cookieclicker/
 // @match http://orteil.dashnet.org/cookieclicker/#*
-// @version 0.2.20130926
+// @version 0.2.20130927
 // @namespace http://keturn.net/
 // @downloadURL https://raw.github.com/keturn/CookieComptroller/master/comptroller.user.js
 // ==/UserScript==

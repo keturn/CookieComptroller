@@ -45,17 +45,20 @@ of AngularJS_.
 .. _Chrome DevTools: https://developers.google.com/chrome-developer-tools/
 .. _AngularJS: http://angularjs.org/
 
+
 License and Disclaimers
------------
+-----------------------
 
 Cookie Comptroller is neither supported nor endorsed by Orteil or the DashNet
 hosts.  Cookie Comptroller has been written with some care to be
 forward-compatible with minor Cookie Clicker updates, but changes to Cookie
 Clicker may render Cookie Comptroller inaccurate or inoperational at any time.
 
-`Cookie Monster`_ users take note: Cookie Monster might not load after Cookie
-Comptroller. If you can figure out how to make Cookie Monster load *before*
-Cookie Comptroller, that might work.
+`Cookie Monster`_ users take note: As of Cookie Clicker 0.2.20130927, it can be
+loaded at the same time as Cookie Monster (tested with Cookie Monster
+1.0.36.08), but there is one very significant issue: it makes Golden Cookies
+spawn *under* the Comptroller UI if you have it open at the time. You have to
+close it (or switch to another menu) to click on the cookie.
 
 .. _Cookie Monster: http://cookieclicker.wikia.com/wiki/Cookie_Monster_(JavaScript_Add-on)
 
