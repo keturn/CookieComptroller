@@ -300,6 +300,12 @@ var _Comptroller = function _Comptroller(Game) {
             "    text-align: right;" +
             "}\n" +
             ".comptrollerIncomeTable .cellContainer { position: relative; }\n" +
+            ".comptrollerDebug table tr {\n" +
+            "    border: thin solid #888;" +
+            "}\n" +
+            ".comptrollerDebug table td {\n" +
+            "    padding-left: 1ex;" +
+            "}\n" +
             /* from tooltip.description */
             "#comptroller .description q {\n" +
             "    display:block; position:relative; text-align:right; " +
@@ -423,7 +429,7 @@ var _Comptroller = function _Comptroller(Game) {
             "</tr>\n" +
             "</tbody></table>\n" +
             "<!-- end div.comptrollerIncome --></div>\n" +
-            "<div ng-switch-when='debug' ng-controller='DebugController'>" +
+            "<div ng-switch-when='debug' class='comptrollerDebug' ng-controller='DebugController'>" +
             "<p>DEBUGGIN</p>" +
             "<table>\n" +
             "<tr ng-repeat='(upID, upgrade) in ups.upgrades'>" +
@@ -433,8 +439,9 @@ var _Comptroller = function _Comptroller(Game) {
             "    <td ng-bind-html-unsafe='upgrade.desc' class='description'></td>" +
             "</tr>\n" +
             "</table>\n" +
+            "<hr />\n" +
             "<table>\n" +
-            "<tr ng-repeat='(bldID, building) in ups.buildings'>" +
+            "<tr ng-repeat='(bldID, building) in bldgs.buildings'>" +
             "<th>{{ building.name }}</th>\n" +
             "<td><ul>\n" +
             "    <li ng-repeat='upgrade in ups.byBuildingId[bldID]'>" +
@@ -455,6 +462,15 @@ var _Comptroller = function _Comptroller(Game) {
             "</ul></td>" +
             "</tr>\n" +
             "</table>\n" +
+            "<hr />\n" +
+            "<table>\n" +
+            "<tr ng-repeat='(bldID, building) in bldgs.buildings'>" +
+            "<td>{{ bldID }}</td>" +
+            "<td>{{ building.name }}</td>" +
+            "<td>{{ bldgs.buildingCPS[bldID] }}</td>" +
+            "<td>{{ building.storedCps }}</td>" +
+            "</tr>\n" +
+            "</table>" +
             "<!-- end DebugController --></div>\n" +
             "<!-- end div.comptrollerPane --></div>\n" +
             "<p class='helpLink'><a target='_blank' rel='help' href='{{ helpURL() }}'>Help?</a></p>\n" +
@@ -649,9 +665,8 @@ var _Comptroller = function _Comptroller(Game) {
      */
     var UpgradesService = function UpgradesService(CookieClicker) {
         var buildings, finders, upgrades, thisService = this;
-        buildings = CookieClicker.storeObjects();
+        buildings = CookieClicker.Game.ObjectsById;
         upgrades = CookieClicker.Game.UpgradesById;
-        this.buildings = buildings;
         this.upgrades = upgrades;
         this.kittens = {name: 'MEOW'};
         this.globalUpgrade = {name: 'NOM'};
@@ -723,6 +738,52 @@ var _Comptroller = function _Comptroller(Game) {
 
         return this;
     };
+
+    var BuildingsService = function BuildingsService(CookieClicker) {
+        var getOriginalCPS = function getOriginalCPS(building) {
+            var cps, baseCpsCalled, origComputeCps;
+
+            if (typeof(building.cps) === 'number') {
+                // there are some indications in the source that the cps
+                // property was a plain number once, but this isn't currently
+                // true.
+                cps = building.cps;
+            } else {
+                // IT FEELS SO DIRTY. I started a feature thinking that the
+                // base CPS was a property of Game.Object, but no, it's
+                // hardcoded in. But we have ways. All the cps() methods call
+                // Game.ComputeCps, so we'll monkey-patch that, and grab the
+                // base parameter. Technically, we could do this to get
+                // multiplier values too, but leaving things monkey-patched
+                // has proven to be risky for integration with other add-ons.
+
+                baseCpsCalled = [];
+                origComputeCps = Game.ComputeCps;
+                //noinspection JSUnusedLocalSymbols,JSHint
+                Game.ComputeCps = function ComputeCpsSpy(base, add, mult, bonus) {
+                    baseCpsCalled.push(base);
+                };
+                try {
+                   building.cps();
+                } finally {
+                    Game.ComputeCps = origComputeCps;
+                }
+                if (baseCpsCalled.length !== 1) {
+                    // our hacks failed to determine the value. We should maybe
+                    // fail louder here so someone reports that this no longer
+                    // works.
+                    return NaN;
+                }
+
+                cps = baseCpsCalled[0];
+            }
+            return cps;
+        };
+        this.buildings = CookieClicker.Game.ObjectsById;
+        this.buildingCPS = this.buildings.map(getOriginalCPS);
+        return this;
+    };
+
 
     /**
      *
@@ -1027,9 +1088,10 @@ var _Comptroller = function _Comptroller(Game) {
     };
 
 
-    var DebugController = function DebugController($scope, CookieClicker, Upgrades
-        ) {
+    var DebugController = function DebugController($scope, CookieClicker,
+        Upgrades, Buildings) {
         $scope.ups = Upgrades;
+        $scope.bldgs = Buildings;
     };
 
 
@@ -1039,6 +1101,7 @@ var _Comptroller = function _Comptroller(Game) {
         /* Services. */
         module.service("CookieClicker", CookieClickerService);
         module.service("Upgrades", UpgradesService);
+        module.service("Buildings", BuildingsService);
 
         /* Controllers. */
         module.controller("ComptrollerController", ComptrollerController);
