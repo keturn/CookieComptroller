@@ -285,6 +285,9 @@ var _Comptroller = function _Comptroller(Game) {
             ".comptrollerIncomeTable .expenseBar .rightSegment {" +
             "    border-left-width: 0;" +
             "}\n" +
+            ".comptrollerIncomeTable .incomeBar .rightSegment {" +
+            "    border-left-width: 0;" +
+            "}\n" +
             ".comptrollerIncomeTable .upgradeBar {" +
             "    background: hsla(120, 80%, 70%, 1);" +
             "    border: thin outset hsla(120, 80%, 70%, 1);" +
@@ -411,7 +414,7 @@ var _Comptroller = function _Comptroller(Game) {
             "    <div class='expenseBar'>" +
             "        <span class='upgradeBar' ng-style='{width: pctSpentOnBuildingUpgrades(obj) * 100 + \"%\"}'>&nbsp;</span>" +
             // it's important there is no whitespace between these spans
-            "<span class='buildingBar rightSegment' ng-style='{width: pctSpentOn(obj) * 100 + \"%\"}'>&nbsp;</span>" +
+            "<!-- --><span class='buildingBar rightSegment' ng-style='{width: pctSpentOn(obj) * 100 + \"%\"}'>&nbsp;</span>" +
             "    </div>" +
             "    <div class='expenseLabel'>" +
             "      <span class='spend'>{{ spentOnCombined(obj) | number:0 }}</span>" +
@@ -420,7 +423,9 @@ var _Comptroller = function _Comptroller(Game) {
             "  <td class='nameCol' ng-bind-html-unsafe='obj.name'></td>" +
             "  <td class='incomeCol'><div class='cellContainer'>" +
             "    <div class='incomeBar'>" +
-            "        <span class='buildingBar' ng-style='{width: incomePct(obj) * 100 + \"%\"}'>&nbsp;</span></div>" +
+            "        <span class='buildingBar' ng-style='{width: baseIncomePct(obj) * 100 + \"%\"}'>&nbsp;</span>" +
+            "<!-- --><span class='upgradeBar rightSegment' ng-style='{width: upgradeIncomePct(obj) * 100 + \"%\"}'>&nbsp;</span>" +
+            "</div>" +
             "    <div class='incomeLabel'>" +
             "      <span class='pct'>{{ incomePct(obj) * 100| number }}%</span>" +
             "      <span class='income'>{{ income(obj) | number:0 }}</span>" +
@@ -1026,7 +1031,7 @@ var _Comptroller = function _Comptroller(Game) {
     };
 
     var IncomeController = function IncomeController($scope, CookieClicker,
-        Upgrades) {
+        Buildings, Upgrades) {
         var totalSpent = function totalSpent() {
             return CookieClicker.Game.cookiesEarned - CookieClicker.Game.cookies;
         };
@@ -1075,6 +1080,18 @@ var _Comptroller = function _Comptroller(Game) {
          */
         $scope.incomePct = function incomePct(building) {
             return $scope.income(building) / CookieClicker.Game.cookiesPs;
+        };
+        $scope.baseIncomePct = function baseIncomePct(building) {
+            var fromBase, ratio;
+            fromBase = Buildings.buildingCPS[building.id];
+            ratio = fromBase / building.storedCps;
+            // storedCps doesn't include the global multiplier, but the income
+            // total does, so this is not quite right. I think in the end we
+            // want a third bar segment for the income from global multipliers.
+            return $scope.incomePct(building) * ratio;
+        };
+        $scope.upgradeIncomePct = function upgradeIncomePct(building) {
+            return $scope.incomePct(building) - $scope.baseIncomePct(building);
         };
         $scope.income = function income(building) {
             return building.storedTotalCps * CookieClicker.Game.globalCpsMult;
