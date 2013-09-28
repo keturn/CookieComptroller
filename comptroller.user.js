@@ -88,6 +88,8 @@ var _Comptroller = function _Comptroller(Game) {
 
     var WIKI = 'https://github.com/keturn/CookieComptroller/wiki/';
 
+    var DEBUG = false;
+
     /* String formatting functions. Purely functional with no game logic or advanced object types. */
     var FormatUtils = (function () {
         var _prefixes = ['', 'kilo', 'mega', 'giga', 'tera', 'peta', 'exa', 'zetta', 'yotta'];
@@ -405,6 +407,17 @@ var _Comptroller = function _Comptroller(Game) {
             "</tr>\n" +
             "</tbody></table>\n" +
             "<!-- end div.comptrollerIncome --></div>\n" +
+            "<div ng-switch-when='debug' ng-controller='DebugController'>" +
+            "<p>DEBUGGIN</p>" +
+            "<table>\n" +
+            "<tr ng-repeat='(upID, up) in ups.upgradesToBuildings'>" +
+            "    <td>{{ upID }}</td>" +
+            "    <td>{{ up.upgrade.name }}<br />" +
+            "        {{ up.building.name || '!!!!!!!!' }}</td>" +
+            "    <td ng-bind-html-unsafe='up.upgrade.desc' class='description'></td>" +
+            "</tr>\n" +
+            "</table>\n" +
+            "<!-- end DebugController --></div>\n" +
             "<!-- end div.comptrollerPane --></div>\n" +
             "<p class='helpLink'><a target='_blank' rel='help' href='{{ helpURL() }}'>Help?</a></p>\n" +
             "<!-- end ComptrollerController --></div>\n" +
@@ -592,6 +605,74 @@ var _Comptroller = function _Comptroller(Game) {
 
     /**
      *
+     * @param CookieClicker {CookieClickerService}
+     * @returns {UpgradesService}
+     * @constructor
+     */
+    var UpgradesService = function UpgradesService(CookieClicker) {
+        var buildings, finders, upgrades, thisService = this;
+        buildings = CookieClicker.storeObjects();
+        upgrades = CookieClicker.Game.UpgradesById;
+        this.byBuilding = buildings.map(function () {
+            return [];
+        });
+        this.kittenUpgrades = [];
+        this.globalUpgrades = [];
+        this.kittens = {name: 'MEOW'};
+        this.globalUpgrade = {name: 'NOM'};
+        finders = buildings.map(function (building) {
+            var finder = function finder(desc) {
+                var singleIndex, pluralIndex;
+                desc = desc.toLowerCase();
+                // FIXME: This works in most cases but it thinks the word
+                // "grandmatriarch" indicates an upgrade for "grandma".
+                singleIndex = desc.indexOf(building.single.toLowerCase());
+                pluralIndex = desc.indexOf(building.plural.toLowerCase());
+                // I just want to return the lower index, but indexOf returning
+                // -1 on no match makes that a little harder.
+                if (singleIndex === -1 && pluralIndex === -1) {
+                    return null;
+                } else if (singleIndex !== -1 && pluralIndex !== -1) {
+                    return Math.min(singleIndex, pluralIndex);
+                } else {
+                    return (singleIndex !== -1) ? singleIndex : pluralIndex;
+                }
+            };
+            finder.building = building;
+            return finder;
+        });
+        this.buildingForUpgrade = function buildingForUpgrade(upgrade) {
+            var building, descMatches;
+            if (upgrade.type === 'cookie') {
+                building = thisService.globalUpgrade;
+            } else if (CCConstants.milkUpgrades[upgrade.name]) {
+                building = thisService.kittens;
+            } else {
+                descMatches = finders.map(function (finder) {
+                    return [finder(upgrade.desc), finder.building];
+                });
+                descMatches = descMatches.filter(function (match) {
+                    return (match[0] !== null);
+                });
+                descMatches.sort(function (a, b) {
+                    return a[0] - b[0];
+                });
+                if (descMatches.length) {
+                    building = descMatches[0][1];
+                }
+            }
+            return {
+                building: building,
+                upgrade: upgrade
+            };
+        };
+        this.upgradesToBuildings = upgrades.map(this.buildingForUpgrade);
+
+        return this;
+    };
+
+    /**
+     *
      * @param $scope
      * @param CookieClicker {CookieClickerService}
      * @param numberFilter {function}
@@ -600,6 +681,9 @@ var _Comptroller = function _Comptroller(Game) {
     var ComptrollerController = function ComptrollerController(
             $scope, CookieClicker, numberFilter) {
         $scope.panes = ["purchasing", "income"];
+        if (DEBUG) {
+            $scope.panes.push("debug");
+        }
         $scope.pane = $scope.panes[0];
         var helpLinks = {
                 "purchasing": WIKI + "Help:Purchasing",
@@ -871,17 +955,27 @@ var _Comptroller = function _Comptroller(Game) {
     };
 
 
+    var DebugController = function DebugController($scope, CookieClicker, Upgrades
+        ) {
+        $scope.ups = Upgrades;
+    };
+
+
     var defineServices = function defineServices() {
         var module = angular.module("cookieComptroller", []);
 
         /* Services. */
         module.service("CookieClicker", CookieClickerService);
+        module.service("Upgrades", UpgradesService);
 
         /* Controllers. */
         module.controller("ComptrollerController", ComptrollerController);
         module.controller("UpgradeCalculatorController", UpgradeCalculatorController);
         module.controller("BuildingCalculatorController", BuildingCalculatorController);
         module.controller("IncomeController", IncomeController);
+        if (DEBUG) {
+            module.controller("DebugController", DebugController);
+        }
 
         /* Filters. */
         module.filter("metricPrefixed", function () { return FormatUtils.metricPrefixed;});
@@ -891,6 +985,7 @@ var _Comptroller = function _Comptroller(Game) {
 
 
     return {
+        Constants: CCConstants,
         Foundation: Foundation,
         FormatUtils: FormatUtils
     };
