@@ -410,11 +410,33 @@ var _Comptroller = function _Comptroller(Game) {
             "<div ng-switch-when='debug' ng-controller='DebugController'>" +
             "<p>DEBUGGIN</p>" +
             "<table>\n" +
-            "<tr ng-repeat='(upID, up) in ups.upgradesToBuildings'>" +
+            "<tr ng-repeat='(upID, upgrade) in ups.upgrades'>" +
             "    <td>{{ upID }}</td>" +
-            "    <td>{{ up.upgrade.name }}<br />" +
-            "        {{ up.building.name || '!!!!!!!!' }}</td>" +
-            "    <td ng-bind-html-unsafe='up.upgrade.desc' class='description'></td>" +
+            "    <td><span ng-bind-html-unsafe='upgrade.name'></span><br />" +
+            "        {{ ups.upgradeIdToBuilding[upID].name || '!!!!!!!!' }}</td>" +
+            "    <td ng-bind-html-unsafe='upgrade.desc' class='description'></td>" +
+            "</tr>\n" +
+            "</table>\n" +
+            "<table>\n" +
+            "<tr ng-repeat='(bldID, building) in ups.buildings'>" +
+            "<th>{{ building.name }}</th>\n" +
+            "<td><ul>\n" +
+            "    <li ng-repeat='upgrade in ups.byBuildingId[bldID]'>" +
+            "    <span ng-bind-html-unsafe='upgrade.name'></span></li>\n" +
+            "</ul></td>" +
+            "</tr>\n" +
+            "<tr>" +
+            "<th>Kittens</th>\n" +
+            "<td><ul>\n" +
+            "    <li ng-repeat='upgrade in ups.kittenUpgrades'>" +
+            "    <span ng-bind-html-unsafe='upgrade.name'></span></li>\n" +
+            "</ul></td>" +
+            "</tr>\n" +
+            "<th>Global Production</th>\n" +
+            "<td><ul>\n" +
+            "    <li ng-repeat='upgrade in ups.globalUpgrades'>" +
+            "    <span ng-bind-html-unsafe='upgrade.name'></span></li>\n" +
+            "</ul></td>" +
             "</tr>\n" +
             "</table>\n" +
             "<!-- end DebugController --></div>\n" +
@@ -613,30 +635,17 @@ var _Comptroller = function _Comptroller(Game) {
         var buildings, finders, upgrades, thisService = this;
         buildings = CookieClicker.storeObjects();
         upgrades = CookieClicker.Game.UpgradesById;
-        this.byBuilding = buildings.map(function () {
-            return [];
-        });
-        this.kittenUpgrades = [];
-        this.globalUpgrades = [];
+        this.buildings = buildings;
+        this.upgrades = upgrades;
         this.kittens = {name: 'MEOW'};
         this.globalUpgrade = {name: 'NOM'};
         finders = buildings.map(function (building) {
+            var re = new RegExp(
+                '\\b(' + building.single + '|' + building.plural + ')\\b',
+                'i');
             var finder = function finder(desc) {
-                var singleIndex, pluralIndex;
-                desc = desc.toLowerCase();
-                // FIXME: This works in most cases but it thinks the word
-                // "grandmatriarch" indicates an upgrade for "grandma".
-                singleIndex = desc.indexOf(building.single.toLowerCase());
-                pluralIndex = desc.indexOf(building.plural.toLowerCase());
-                // I just want to return the lower index, but indexOf returning
-                // -1 on no match makes that a little harder.
-                if (singleIndex === -1 && pluralIndex === -1) {
-                    return null;
-                } else if (singleIndex !== -1 && pluralIndex !== -1) {
-                    return Math.min(singleIndex, pluralIndex);
-                } else {
-                    return (singleIndex !== -1) ? singleIndex : pluralIndex;
-                }
+                var index = desc.search(re);
+                return (index !== -1) ? index : null;
             };
             finder.building = building;
             return finder;
@@ -648,26 +657,45 @@ var _Comptroller = function _Comptroller(Game) {
             } else if (CCConstants.milkUpgrades[upgrade.name]) {
                 building = thisService.kittens;
             } else {
+                // have buildings look for themselves in the description
                 descMatches = finders.map(function (finder) {
                     return [finder(upgrade.desc), finder.building];
                 });
+                // keep only those that matched
                 descMatches = descMatches.filter(function (match) {
                     return (match[0] !== null);
                 });
-                descMatches.sort(function (a, b) {
-                    return a[0] - b[0];
-                });
+                // sort by how early in the text the building appeared
+                descMatches.sort(function (a, b) { return a[0] - b[0]; });
                 if (descMatches.length) {
+                    // pick the first one
                     building = descMatches[0][1];
+                } else if (upgrade.desc.indexOf('Cookie production multiplier') !== -1) {
+                    // catches upgrades from research results
+                    building = thisService.globalUpgrade;
+                } else if (upgrade.desc.indexOf('[Repeatable]') !== -1) {
+                    // doesn't really upgrade anything (elder pledge)
+                    building = null;
                 }
             }
-            return {
-                building: building,
-                upgrade: upgrade
-            };
+            return building;
         };
-        this.upgradesToBuildings = upgrades.map(this.buildingForUpgrade);
+        this.upgradeIdToBuilding = upgrades.map(this.buildingForUpgrade);
 
+        this.byBuildingId = buildings.map(function () { return []; });
+        this.kittenUpgrades = [];
+        this.globalUpgrades = [];
+        this.upgradeIdToBuilding.forEach(function (building, upgradeID) {
+            var upgrade = upgrades[upgradeID];
+            if (building === thisService.kittens) {
+                thisService.kittenUpgrades.push(upgrade);
+            } else if (building === thisService.globalUpgrade) {
+                thisService.globalUpgrades.push(upgrade);
+            } else if (building) {
+                // I would like ES6 Map collections already please.
+                thisService.byBuildingId[building.id].push(upgrade);
+            }
+        });
         return this;
     };
 
