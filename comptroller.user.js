@@ -276,10 +276,14 @@ var _Comptroller = function _Comptroller(Game) {
             ".comptrollerIncomeTable span.buildingBar, .comptrollerIncomeTable span.upgradeBar {" +
             "    display: inline-block;" +
             "    box-sizing: border-box;" +
+            "    -moz-box-sizing: border-box;" +
             "}\n" +
             ".comptrollerIncomeTable .buildingBar {" +
             "    background: hsla(185, 80%, 70%, 1);" +
             "    border: thin outset hsla(185, 80%, 70%, 1);" +
+            "}\n" +
+            ".comptrollerIncomeTable .expenseBar .rightSegment {" +
+            "    border-left-width: 0;" +
             "}\n" +
             ".comptrollerIncomeTable .upgradeBar {" +
             "    background: hsla(120, 80%, 70%, 1);" +
@@ -401,7 +405,7 @@ var _Comptroller = function _Comptroller(Game) {
             "    <div class='expenseBar'>" +
             "        <span class='upgradeBar' ng-style='{width: pctSpentOnBuildingUpgrades(obj) * 100 + \"%\"}'>&nbsp;</span>" +
             // it's important there is no whitespace between these spans
-            "<span class='buildingBar' ng-style='{width: pctSpentOn(obj) * 100 + \"%\"}'>&nbsp;</span>" +
+            "<span class='buildingBar rightSegment' ng-style='{width: pctSpentOn(obj) * 100 + \"%\"}'>&nbsp;</span>" +
             "    </div>" +
             "    <div class='expenseLabel'>" +
             "      <span class='spend'>{{ spentOnCombined(obj) | number:0 }}</span>" +
