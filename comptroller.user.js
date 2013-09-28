@@ -265,20 +265,27 @@ var _Comptroller = function _Comptroller(Game) {
             "    position: absolute;" +
             "    right: 0;" +
             "    z-index: 0;" +
-            "    background: hsla(120, 80%, 70%, 1);" +
-            "    border: thin outset hsla(120, 80%, 70%, 1);" +
-            "    border-radius: 1ex 0 0 0;" +
-            "    width: 15%;" +
+            "    width: 100%;" +
             "}\n" +
             ".comptrollerIncomeTable .incomeBar {" +
             "    position: absolute;" +
             "    left: 0;" +
             "    z-index: 0;" +
+            "    width: 100%;" +
+            "}\n" +
+            ".comptrollerIncomeTable span.buildingBar, .comptrollerIncomeTable span.upgradeBar {" +
+            "    display: inline-block;" +
+            "    box-sizing: border-box;" +
+            "}\n" +
+            ".comptrollerIncomeTable .buildingBar {" +
             "    background: hsla(185, 80%, 70%, 1);" +
             "    border: thin outset hsla(185, 80%, 70%, 1);" +
-            "    border-radius: 0 1ex 0 0;" +
-            "    width: 15%;" +
             "}\n" +
+            ".comptrollerIncomeTable .upgradeBar {" +
+            "    background: hsla(120, 80%, 70%, 1);" +
+            "    border: thin outset hsla(120, 80%, 70%, 1);" +
+            "}\n" +
+
             ".comptrollerIncomeTable .expenseLabel, .comptrollerIncomeTable .incomeLabel {" +
             "    position: relative;" +
             "    z-index: 1;" +
@@ -391,14 +398,19 @@ var _Comptroller = function _Comptroller(Game) {
             /* oh geez absolute positioning within table cells is buckets of fun. */
             "<tr ng-repeat='obj in storeObjects()' ng-show='obj.amount'>" +
             "  <td class='expenseCol'><div class='cellContainer'>" +
-            "    <div class='expenseBar' ng-style='{width: pctSpentOn(obj) * 100 + \"%\"}'>&nbsp;</div>" +
+            "    <div class='expenseBar'>" +
+            "        <span class='upgradeBar' ng-style='{width: pctSpentOnBuildingUpgrades(obj) * 100 + \"%\"}'>&nbsp;</span>" +
+            // it's important there is no whitespace between these spans
+            "<span class='buildingBar' ng-style='{width: pctSpentOn(obj) * 100 + \"%\"}'>&nbsp;</span>" +
+            "    </div>" +
             "    <div class='expenseLabel'>" +
-            "      <span class='spend'>{{ spentOn(obj) | number:0 }}</span>" +
-            "      <span class='pct'>{{ pctSpentOn(obj) * 100 | number }}%</span>" +
+            "      <span class='spend'>{{ spentOnCombined(obj) | number:0 }}</span>" +
+            "      <span class='pct'>{{ pctSpentOnCombined(obj) * 100 | number }}%</span>" +
             "  </div></div></td>" +
             "  <td class='nameCol' ng-bind-html-unsafe='obj.name'></td>" +
             "  <td class='incomeCol'><div class='cellContainer'>" +
-            "    <div class='incomeBar' ng-style='{width: incomePct(obj) * 100 + \"%\"}'>&nbsp;</div>" +
+            "    <div class='incomeBar'>" +
+            "        <span class='buildingBar' ng-style='{width: incomePct(obj) * 100 + \"%\"}'>&nbsp;</span></div>" +
             "    <div class='incomeLabel'>" +
             "      <span class='pct'>{{ incomePct(obj) * 100| number }}%</span>" +
             "      <span class='income'>{{ income(obj) | number:0 }}</span>" +
@@ -696,6 +708,15 @@ var _Comptroller = function _Comptroller(Game) {
                 thisService.byBuildingId[building.id].push(upgrade);
             }
         });
+
+        // if we wanted to cache this, we could watch the Game.upgradesOwned
+        // counter.
+        this.ownedUpgradesForBuilding = function ownedUpgradesForBuilding(building) {
+            var ups = thisService.byBuildingId[building.id];
+            ups = ups.filter(function (upgrade) { return upgrade.bought; });
+            return ups;
+        };
+
         return this;
     };
 
@@ -939,7 +960,8 @@ var _Comptroller = function _Comptroller(Game) {
         };
     };
 
-    var IncomeController = function IncomeController($scope, CookieClicker) {
+    var IncomeController = function IncomeController($scope, CookieClicker,
+        Upgrades) {
         var totalSpent = function totalSpent() {
             return CookieClicker.Game.cookiesEarned - CookieClicker.Game.cookies;
         };
@@ -950,7 +972,7 @@ var _Comptroller = function _Comptroller(Game) {
             var building, buildingSpent = 0;
             for (var i = 0; i < CookieClicker.Game.ObjectsN; i++) {
                 building = CookieClicker.Game.ObjectsById[i];
-                buildingSpent += $scope.spentOn(building);
+                buildingSpent += $scope.spentOnCombined(building);
             }
             return buildingSpent;
         };
@@ -961,8 +983,26 @@ var _Comptroller = function _Comptroller(Game) {
         $scope.spentOn = function spentOn(building) {
             return CookieClicker.costForBuildings(building, 0, building.amount);
         };
+        $scope.spentOnBuildingUpgrades = function spentOnBuildingUpgrades(building) {
+            var spent = 0,
+                upgrades = Upgrades.ownedUpgradesForBuilding(building);
+            for (var i = 0; i < upgrades.length; i++) {
+                spent += upgrades[i].basePrice;
+            }
+            return spent;
+        };
+        $scope.spentOnCombined = function spentOnCombined(building) {
+            return ($scope.spentOn(building) +
+                $scope.spentOnBuildingUpgrades(building));
+        };
         $scope.pctSpentOn = function pctSpentOn(building) {
             return $scope.spentOn(building) / totalBuildingSpent();
+        };
+        $scope.pctSpentOnBuildingUpgrades = function pctSpentOn(building) {
+            return $scope.spentOnBuildingUpgrades(building) / totalBuildingSpent();
+        };
+        $scope.pctSpentOnCombined = function pctSpentOn(building) {
+            return $scope.spentOnCombined(building) / totalBuildingSpent();
         };
         /**
          * @param building {Game.Object}
